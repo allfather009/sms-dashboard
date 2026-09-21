@@ -1,59 +1,108 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
-import { Contact, FilterState, SMSBatchResult, ToastNotification } from '@/types';
-import { sendBulkSMS } from '@/services/smsService';
-import { getSampleContacts } from '@/utils/fileParser';
+import { Student, Contact, FilterState, SMSBatchResult, ToastNotification, TargetingMode } from '@/types';
 import { 
-  fetchContactsFromSupabase, 
-  deleteContactFromSupabase 
-} from '@/services/contactService';
-import { 
-  fetchCampaignsFromSupabase, 
-  saveCampaignToSupabase 
-} from '@/services/campaignService';
+  fetchStudentsFromSupabase, 
+  insertStudentToSupabase, 
+  updateStudentInSupabase, 
+  deleteStudentFromSupabase,
+  mapStudentToContact
+} from '@/services/studentService';
+import { fetchCampaignsFromSupabase, saveCampaignToSupabase } from '@/services/campaignService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
 interface SMSContextType {
-  contacts: Contact[];
-  selectedContactIds: string[];
+  // Student state
+  students: Student[];
+  selectedStudentIds: string[];
+  isLoadingStudents: boolean;
+  isSupabaseLive: boolean;
+
+  // Filter state
   filters: FilterState;
+  filteredStudents: Student[];
+  departments: string[];
+  stages: string[];
+  isAllFilteredSelected: boolean;
+  isSomeFilteredSelected: boolean;
+
+  // Targeting options for SMS Composer
+  targetingMode: TargetingMode;
+  targetDepartments: string[];
+  targetStage: string;
+  targetCombinedDept: string;
+  targetCombinedStage: string;
+  resolvedRecipients: Student[];
+  targetSummaryText: string;
+
+  // Composer & Dispatch state
   isComposerOpen: boolean;
   composerMessage: string;
   isSending: boolean;
   sendProgress: number;
   toast: ToastNotification | null;
   campaignHistory: SMSBatchResult[];
-  activeTab: 'contacts' | 'upload' | 'campaigns' | 'settings';
-  isLoadingContacts: boolean;
-  isSupabaseLive: boolean;
-  
-  // Computed values
-  filteredContacts: Contact[];
+  activeTab: 'students' | 'contacts' | 'upload' | 'campaigns' | 'settings';
+
+  // Backwards compatibility aliases
+  contacts: Contact[];
   selectedContacts: Contact[];
-  departments: string[];
-  stages: string[];
-  isAllFilteredSelected: boolean;
-  isSomeFilteredSelected: boolean;
+  filteredContacts: Contact[];
+  selectedContactIds: string[];
+  isLoadingContacts: boolean;
+  addContacts: (newContacts: Contact[], append?: boolean) => void;
 
   // Actions
-  setActiveTab: (tab: 'contacts' | 'upload' | 'campaigns' | 'settings') => void;
-  setContacts: (contacts: Contact[]) => void;
-  addContacts: (newContacts: Contact[], append?: boolean) => void;
-  removeContact: (id: string) => Promise<void>;
-  clearAllContacts: () => void;
-  toggleSelectContact: (id: string) => void;
-  selectAllFiltered: () => void;
-  deselectAll: () => void;
+  setActiveTab: (tab: 'students' | 'contacts' | 'upload' | 'campaigns' | 'settings') => void;
   setFilters: (update: Partial<FilterState>) => void;
   resetFilters: () => void;
+  toggleSelectStudent: (id: string) => void;
+  selectAllFiltered: () => void;
+  deselectAll: () => void;
+
+  // CRUD Actions
+  createStudent: (data: {
+    studentId: string;
+    fullName: string;
+    department: string;
+    stage: string;
+    phoneNumber: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  editStudent: (
+    id: string,
+    data: {
+      studentId?: string;
+      fullName?: string;
+      department?: string;
+      stage?: string;
+      phoneNumber?: string;
+    }
+  ) => Promise<{ success: boolean; error?: string }>;
+  removeStudent: (id: string) => Promise<void>;
+  refreshStudents: () => Promise<void>;
+
+  // Targeting setters
+  setTargetingMode: (mode: TargetingMode) => void;
+  setTargetDepartments: (depts: string[]) => void;
+  toggleTargetDepartment: (dept: string) => void;
+  setTargetStage: (stage: string) => void;
+  setTargetCombinedDept: (dept: string) => void;
+  setTargetCombinedStage: (stage: string) => void;
+
+  // Composer Actions
   setIsComposerOpen: (open: boolean) => void;
-  setComposerMessage: (message: string) => void;
+  setComposerMessage: (msg: string) => void;
   showToast: (notification: Omit<ToastNotification, 'id'>) => void;
   hideToast: () => void;
   triggerSendSMS: () => Promise<SMSBatchResult | null>;
-  loadSampleData: () => void;
+
+  // Legacy aliases
+  toggleSelectContact: (id: string) => void;
+  removeContact: (id: string) => Promise<void>;
   refreshContacts: () => Promise<void>;
+  loadSampleData: () => void;
 }
 
 const SMSContext = createContext<SMSContextType | undefined>(undefined);
@@ -64,23 +113,49 @@ const DEFAULT_FILTERS: FilterState = {
   stage: 'All',
 };
 
-const DEFAULT_MESSAGE = "Hi {Name}, this is an update regarding your {Department} project in {Stage}. Please let us know if you have any questions.";
+const DEFAULT_MESSAGE = "Dear {Name} (ID: {StudentID}), please note that your {Department} lectures for {Stage} will proceed as scheduled. Contact department administration for inquiries.";
 
 export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [filters, setFiltersState] = useState<FilterState>(DEFAULT_FILTERS);
+  const [isLoadingStudents, setIsLoadingStudents] = useState<boolean>(true);
+  const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(false);
+
+  // Targeting options
+  const [targetingMode, setTargetingMode] = useState<TargetingMode>('department');
+  const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+  const [targetStage, setTargetStage] = useState<string>('Stage 1');
+  const [targetCombinedDept, setTargetCombinedDept] = useState<string>('Information Technology');
+  const [targetCombinedStage, setTargetCombinedStage] = useState<string>('Stage 2');
+
+  // SMS Composer & Sending state
   const [isComposerOpen, setIsComposerOpen] = useState<boolean>(false);
   const [composerMessage, setComposerMessage] = useState<string>(DEFAULT_MESSAGE);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sendProgress, setSendProgress] = useState<number>(0);
   const [toast, setToast] = useState<ToastNotification | null>(null);
   const [campaignHistory, setCampaignHistory] = useState<SMSBatchResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'contacts' | 'upload' | 'campaigns' | 'settings'>('contacts');
-  const [isLoadingContacts, setIsLoadingContacts] = useState<boolean>(true);
-  const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'students' | 'contacts' | 'upload' | 'campaigns' | 'settings'>('students');
 
-  // Show toast notification helper
+  // Add imported contacts / students
+  const addContacts = useCallback((newContacts: Contact[], append = true) => {
+    const convertedStudents: Student[] = newContacts.map((c) => ({
+      id: c.id,
+      studentId: c.studentId || `U2024-${Math.floor(1000 + Math.random() * 9000)}`,
+      fullName: c.name,
+      department: c.department || 'Information Technology',
+      stage: c.stage || 'Stage 1',
+      phoneNumber: c.phoneNumber,
+      createdAt: c.createdAt || new Date().toISOString(),
+    }));
+    setStudents((prev) => (append ? [...convertedStudents, ...prev] : convertedStudents));
+    setSelectedStudentIds((prev) =>
+      append ? [...convertedStudents.map((s) => s.id), ...prev] : convertedStudents.map((s) => s.id)
+    );
+  }, []);
+
+  // Toast Helper
   const showToast = useCallback((notification: Omit<ToastNotification, 'id'>) => {
     const id = `toast-${Date.now()}`;
     setToast({ ...notification, id, timestamp: Date.now() });
@@ -97,15 +172,15 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToast(null);
   }, []);
 
-  // Fetch contacts from Supabase (or fallback to local sample data)
-  const refreshContacts = useCallback(async () => {
-    setIsLoadingContacts(true);
+  // Fetch students from Supabase
+  const refreshStudents = useCallback(async () => {
+    setIsLoadingStudents(true);
     const configured = isSupabaseConfigured();
     setIsSupabaseLive(configured);
 
     if (configured) {
-      const [{ data: contactData, error: contactError }, { data: campaignData }] = await Promise.all([
-        fetchContactsFromSupabase(),
+      const [{ data: studentData, error: studentError }, { data: campaignData }] = await Promise.all([
+        fetchStudentsFromSupabase(),
         fetchCampaignsFromSupabase(),
       ]);
 
@@ -113,170 +188,109 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCampaignHistory(campaignData);
       }
 
-      if (!contactError && contactData.length > 0) {
-        setContacts(contactData);
+      if (!studentError && studentData && studentData.length > 0) {
+        setStudents(studentData);
         // Pre-select first 3
-        setSelectedContactIds(contactData.slice(0, 3).map((c) => c.id));
-        setIsLoadingContacts(false);
+        setSelectedStudentIds(studentData.slice(0, 3).map((s) => s.id));
+        if (studentData[0]?.department) {
+          setTargetDepartments([studentData[0].department]);
+          setTargetCombinedDept(studentData[0].department);
+        }
+        if (studentData[0]?.stage) {
+          setTargetStage(studentData[0].stage);
+          setTargetCombinedStage(studentData[0].stage);
+        }
+        setIsLoadingStudents(false);
         return;
       }
-      if (contactError) {
-        console.warn('Supabase fetch notice:', contactError);
+
+      if (studentError) {
+        console.warn('Supabase students fetch warning:', studentError);
       }
     }
 
-    // Fallback to sample data for evaluation
-    const samples = getSampleContacts();
-    setContacts(samples);
-    setSelectedContactIds([samples[0].id, samples[1].id, samples[2].id]);
-    setIsLoadingContacts(false);
+    setIsLoadingStudents(false);
   }, []);
 
-  // Load data on mount
   useEffect(() => {
-    refreshContacts();
-  }, [refreshContacts]);
+    refreshStudents();
+  }, [refreshStudents]);
 
   // Unique departments list
   const departments = useMemo(() => {
     const set = new Set<string>();
-    contacts.forEach((c) => {
-      if (c.department) set.add(c.department);
+    students.forEach((s) => {
+      if (s.department) set.add(s.department);
     });
     return Array.from(set).sort();
-  }, [contacts]);
+  }, [students]);
 
   // Unique stages list
   const stages = useMemo(() => {
     const set = new Set<string>();
-    contacts.forEach((c) => {
-      if (c.stage) set.add(c.stage);
+    students.forEach((s) => {
+      if (s.stage) set.add(s.stage);
     });
     return Array.from(set).sort();
-  }, [contacts]);
+  }, [students]);
 
-  // Filtered contacts based on search query, department, stage
-  const filteredContacts = useMemo(() => {
+  // Filtered students by search query (Full Name, Student ID, Phone Number), Department, and Stage
+  const filteredStudents = useMemo(() => {
     const query = filters.searchQuery.trim().toLowerCase();
-    return contacts.filter((c) => {
+    return students.filter((s) => {
       const matchesSearch =
         !query ||
-        c.name.toLowerCase().includes(query) ||
-        c.phoneNumber.toLowerCase().includes(query);
+        s.fullName.toLowerCase().includes(query) ||
+        s.studentId.toLowerCase().includes(query) ||
+        s.phoneNumber.toLowerCase().includes(query);
 
       const matchesDept =
         filters.department === 'All' ||
-        c.department.toLowerCase() === filters.department.toLowerCase();
+        s.department.toLowerCase() === filters.department.toLowerCase();
 
       const matchesStage =
         filters.stage === 'All' ||
-        c.stage.toLowerCase() === filters.stage.toLowerCase();
+        s.stage.toLowerCase() === filters.stage.toLowerCase();
 
       return matchesSearch && matchesDept && matchesStage;
     });
-  }, [contacts, filters]);
+  }, [students, filters]);
 
-  // Selected contacts objects
-  const selectedContacts = useMemo(() => {
-    const selectedMap = new Set(selectedContactIds);
-    return contacts.filter((c) => selectedMap.has(c.id));
-  }, [contacts, selectedContactIds]);
-
-  // Selection states relative to filtered view
+  // Selection states
   const isAllFilteredSelected = useMemo(() => {
-    if (filteredContacts.length === 0) return false;
-    const selectedMap = new Set(selectedContactIds);
-    return filteredContacts.every((c) => selectedMap.has(c.id));
-  }, [filteredContacts, selectedContactIds]);
+    if (filteredStudents.length === 0) return false;
+    const selectedMap = new Set(selectedStudentIds);
+    return filteredStudents.every((s) => selectedMap.has(s.id));
+  }, [filteredStudents, selectedStudentIds]);
 
   const isSomeFilteredSelected = useMemo(() => {
-    if (filteredContacts.length === 0) return false;
-    const selectedMap = new Set(selectedContactIds);
-    const someSelected = filteredContacts.some((c) => selectedMap.has(c.id));
+    if (filteredStudents.length === 0) return false;
+    const selectedMap = new Set(selectedStudentIds);
+    const someSelected = filteredStudents.some((s) => selectedMap.has(s.id));
     return someSelected && !isAllFilteredSelected;
-  }, [filteredContacts, selectedContactIds, isAllFilteredSelected]);
+  }, [filteredStudents, selectedStudentIds, isAllFilteredSelected]);
 
-  // Contact operations
-  const addContacts = useCallback((newContacts: Contact[], append = true) => {
-    setContacts((prev) => (append ? [...newContacts, ...prev] : newContacts));
-    setSelectedContactIds((prev) =>
-      append ? [...newContacts.map((c) => c.id), ...prev] : newContacts.map((c) => c.id)
-    );
-  }, []);
-
-  const removeContact = useCallback(async (id: string) => {
-    setContacts((prev) => prev.filter((c) => c.id !== id));
-    setSelectedContactIds((prev) => prev.filter((item) => item !== id));
-    
-    // Delete in Supabase if configured
-    if (isSupabaseConfigured()) {
-      const { error } = await deleteContactFromSupabase(id);
-      if (error) {
-        showToast({
-          type: 'warning',
-          title: 'Supabase Sync Warning',
-          message: `Removed locally, but Supabase error: ${error}`,
-        });
-        return;
-      }
-    }
-
-    showToast({
-      type: 'info',
-      title: 'Contact Removed',
-      message: 'Contact deleted from directory.',
-      duration: 3000,
-    });
-  }, [showToast]);
-
-  const clearAllContacts = useCallback(() => {
-    setContacts([]);
-    setSelectedContactIds([]);
-    showToast({
-      type: 'info',
-      title: 'Workspace Cleared',
-      message: 'All contacts have been removed.',
-    });
-  }, [showToast]);
-
-  const loadSampleData = useCallback(() => {
-    const samples = getSampleContacts();
-    setContacts(samples);
-    setSelectedContactIds(samples.map((c) => c.id));
-    showToast({
-      type: 'success',
-      title: 'Sample Dataset Loaded',
-      message: `Populated ${samples.length} enterprise contacts across 4 departments.`,
-    });
-  }, [showToast]);
-
-  // Selection operations
-  const toggleSelectContact = useCallback((id: string) => {
-    setSelectedContactIds((prev) =>
+  // Selection actions
+  const toggleSelectStudent = useCallback((id: string) => {
+    setSelectedStudentIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   }, []);
 
   const selectAllFiltered = useCallback(() => {
-    const filteredIds = filteredContacts.map((c) => c.id);
-    setSelectedContactIds((prev) => {
-      const currentSet = new Set(prev);
-      const allFilteredInCurrent = filteredIds.every((id) => currentSet.has(id));
-
-      if (allFilteredInCurrent) {
-        return prev.filter((id) => !filteredIds.includes(id));
-      } else {
-        filteredIds.forEach((id) => currentSet.add(id));
-        return Array.from(currentSet);
-      }
-    });
-  }, [filteredContacts]);
+    if (isAllFilteredSelected) {
+      const filteredIds = new Set(filteredStudents.map((s) => s.id));
+      setSelectedStudentIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      const filteredIds = filteredStudents.map((s) => s.id);
+      setSelectedStudentIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  }, [isAllFilteredSelected, filteredStudents]);
 
   const deselectAll = useCallback(() => {
-    setSelectedContactIds([]);
+    setSelectedStudentIds([]);
   }, []);
 
-  // Filter updates
   const setFilters = useCallback((update: Partial<FilterState>) => {
     setFiltersState((prev) => ({ ...prev, ...update }));
   }, []);
@@ -285,13 +299,160 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFiltersState(DEFAULT_FILTERS);
   }, []);
 
-  // Trigger Send SMS
+  // Multi-department toggle helper
+  const toggleTargetDepartment = useCallback((dept: string) => {
+    setTargetDepartments((prev) =>
+      prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]
+    );
+  }, []);
+
+  // Resolved recipients based on selected targeting mode
+  const resolvedRecipients = useMemo(() => {
+    switch (targetingMode) {
+      case 'selected': {
+        const idSet = new Set(selectedStudentIds);
+        return students.filter((s) => idSet.has(s.id));
+      }
+      case 'department': {
+        if (targetDepartments.length === 0) return [];
+        const deptSet = new Set(targetDepartments.map((d) => d.toLowerCase()));
+        return students.filter((s) => deptSet.has(s.department.toLowerCase()));
+      }
+      case 'stage': {
+        if (!targetStage || targetStage === 'All') return students;
+        return students.filter((s) => s.stage.toLowerCase() === targetStage.toLowerCase());
+      }
+      case 'combined': {
+        return students.filter(
+          (s) =>
+            s.department.toLowerCase() === targetCombinedDept.toLowerCase() &&
+            s.stage.toLowerCase() === targetCombinedStage.toLowerCase()
+        );
+      }
+      default:
+        return [];
+    }
+  }, [
+    targetingMode,
+    selectedStudentIds,
+    students,
+    targetDepartments,
+    targetStage,
+    targetCombinedDept,
+    targetCombinedStage,
+  ]);
+
+  // Clean dynamic summary string for composer
+  const targetSummaryText = useMemo(() => {
+    const count = resolvedRecipients.length;
+    switch (targetingMode) {
+      case 'selected':
+        return `Broadcasting to ${count} manually selected student${count !== 1 ? 's' : ''}`;
+      case 'department':
+        if (targetDepartments.length === 0) return 'No departments selected';
+        if (targetDepartments.length === 1)
+          return `Broadcasting to ${count} student${count !== 1 ? 's' : ''} in ${targetDepartments[0]}`;
+        return `Broadcasting to ${count} student${count !== 1 ? 's' : ''} across ${targetDepartments.length} departments`;
+      case 'stage':
+        return `Broadcasting to ${count} student${count !== 1 ? 's' : ''} in ${targetStage} across all departments`;
+      case 'combined':
+        return `Broadcasting to ${count} student${count !== 1 ? 's' : ''}: ${targetCombinedDept} - ${targetCombinedStage}`;
+      default:
+        return `Broadcasting to ${count} students`;
+    }
+  }, [targetingMode, resolvedRecipients.length, targetDepartments, targetStage, targetCombinedDept, targetCombinedStage]);
+
+  // CRUD: Create Student
+  const createStudent = useCallback(
+    async (data: {
+      studentId: string;
+      fullName: string;
+      department: string;
+      stage: string;
+      phoneNumber: string;
+    }) => {
+      const { data: newStudent, error } = await insertStudentToSupabase(data);
+      if (error || !newStudent) {
+        return { success: false, error: error || 'Failed to create student' };
+      }
+
+      setStudents((prev) => [newStudent, ...prev]);
+      setSelectedStudentIds((prev) => [newStudent.id, ...prev]);
+      showToast({
+        type: 'success',
+        title: 'Student Registered',
+        message: `${newStudent.fullName} (${newStudent.studentId}) added to Supabase.`,
+      });
+      return { success: true };
+    },
+    [showToast]
+  );
+
+  // CRUD: Edit Student
+  const editStudent = useCallback(
+    async (
+      id: string,
+      data: {
+        studentId?: string;
+        fullName?: string;
+        department?: string;
+        stage?: string;
+        phoneNumber?: string;
+      }
+    ) => {
+      const { data: updated, error } = await updateStudentInSupabase(id, data);
+      if (error || !updated) {
+        return { success: false, error: error || 'Failed to update student' };
+      }
+
+      setStudents((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      showToast({
+        type: 'success',
+        title: 'Student Updated',
+        message: `Changes for ${updated.fullName} have been saved.`,
+      });
+      return { success: true };
+    },
+    [showToast]
+  );
+
+  // CRUD: Delete Student
+  const removeStudent = useCallback(
+    async (id: string) => {
+      const student = students.find((s) => s.id === id);
+      const studentName = student ? student.fullName : 'Student';
+
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+      setSelectedStudentIds((prev) => prev.filter((item) => item !== id));
+
+      if (isSupabaseConfigured()) {
+        const { error } = await deleteStudentFromSupabase(id);
+        if (error) {
+          showToast({
+            type: 'warning',
+            title: 'Supabase Sync Warning',
+            message: `Deleted locally, but Supabase error: ${error}`,
+          });
+          return;
+        }
+      }
+
+      showToast({
+        type: 'info',
+        title: 'Student Deleted',
+        message: `${studentName} removed from university directory.`,
+      });
+    },
+    [students, showToast]
+  );
+
+  // Bulk SMS Dispatch
   const triggerSendSMS = useCallback(async (): Promise<SMSBatchResult | null> => {
-    if (selectedContacts.length === 0) {
+    if (resolvedRecipients.length === 0) {
       showToast({
         type: 'warning',
-        title: 'No Recipients Selected',
-        message: 'Please select at least one contact before sending.',
+        title: 'No Recipients Target',
+        message: 'No students matched the active targeting criteria.',
       });
       return null;
     }
@@ -299,107 +460,189 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!composerMessage.trim()) {
       showToast({
         type: 'warning',
-        title: 'Empty Message',
-        message: 'Please type an SMS message to transmit.',
+        title: 'Message Required',
+        message: 'Please write an SMS message before sending.',
       });
       return null;
     }
 
-    try {
-      setIsSending(true);
-      setSendProgress(10);
+    setIsSending(true);
+    setSendProgress(10);
+    showToast({
+      type: 'sending',
+      title: 'Transmitting Broadcast',
+      message: `Packaging messages for ${resolvedRecipients.length} students...`,
+    });
 
-      showToast({
-        type: 'sending',
-        title: 'Transmitting Messages',
-        message: `Dispatching to ${selectedContacts.length} recipients...`,
+    try {
+      // Clean and normalize all recipient phone numbers to Bulk SMS Iraq format
+      const normalizedRecipients = resolvedRecipients.map((s) => {
+        const norm = normalizeIraqPhoneNumber(s.phoneNumber);
+        return {
+          id: s.id,
+          name: s.fullName,
+          phoneNumber: norm.isValid ? norm.normalized : s.phoneNumber,
+          department: s.department,
+          stage: s.stage,
+          studentId: s.studentId,
+        };
       });
 
-      const batchResult = await sendBulkSMS(
-        selectedContacts,
-        composerMessage,
-        (progress) => setSendProgress(progress)
-      );
+      const response = await fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipients: normalizedRecipients,
+          message: composerMessage,
+        }),
+      });
+
+      setSendProgress(90);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Server error dispatching SMS');
+      }
+
+      setSendProgress(100);
+
+      const batchResult: SMSBatchResult = {
+        batchId: result.batchId || `BATCH-${Date.now()}`,
+        status: result.status || 'delivered',
+        recipientCount: result.recipientCount || normalizedRecipients.length,
+        totalSegments: result.totalSegments || 1,
+        deliveredCount: result.deliveredCount || normalizedRecipients.length,
+        failedCount: result.failedCount || 0,
+        messagePreview: composerMessage.substring(0, 80),
+        sentAt: result.sentAt || new Date().toISOString(),
+        recipients: normalizedRecipients.map((r) => ({
+          id: r.id,
+          name: r.name,
+          phoneNumber: r.phoneNumber,
+          department: r.department,
+          stage: r.stage,
+        })),
+        providerDetails: {
+          providerName: result.providerName || 'AirSMS Iraq Gateway',
+          latencyMs: result.latencyMs || 2000,
+          simulated: Boolean(result.isSimulated),
+          endpointPlaceholder: result.isSimulated ? '(Simulation Mode)' : 'Live Carrier Gateway',
+        },
+      };
 
       setCampaignHistory((prev) => [batchResult, ...prev]);
 
-      // Persist to Supabase if configured
-      if (isSupabaseConfigured()) {
-        saveCampaignToSupabase(batchResult).catch((err) =>
-          console.warn('Could not save campaign to Supabase:', err)
-        );
-      }
-
-      setIsSending(false);
-      setSendProgress(100);
-
       showToast({
         type: 'success',
-        title: 'Campaign Delivered',
-        message: `Successfully transmitted ${batchResult.totalSegments} SMS segments to ${batchResult.deliveredCount} contacts.`,
-        duration: 6000,
+        title: 'SMS Broadcast Dispatched',
+        message: result.message || `Successfully sent to ${normalizedRecipients.length} students.`,
+        duration: 5000,
       });
+
+      setTimeout(() => {
+        setIsComposerOpen(false);
+      }, 500);
 
       return batchResult;
     } catch (err: unknown) {
-      setIsSending(false);
-      setSendProgress(0);
-      const message = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? err.message : 'Transmission failed.';
       showToast({
         type: 'error',
-        title: 'Broadcast Failed',
-        message,
-        duration: 7000,
+        title: 'Transmission Failed',
+        message: msg,
+        duration: 6000,
       });
       return null;
+    } finally {
+      setIsSending(false);
+      setSendProgress(0);
     }
-  }, [selectedContacts, composerMessage, showToast]);
+  }, [resolvedRecipients, composerMessage, showToast]);
 
-  const value: SMSContextType = {
-    contacts,
-    selectedContactIds,
-    filters,
-    isComposerOpen,
-    composerMessage,
-    isSending,
-    sendProgress,
-    toast,
-    campaignHistory,
-    activeTab,
-    isLoadingContacts,
-    isSupabaseLive,
-    filteredContacts,
-    selectedContacts,
-    departments,
-    stages,
-    isAllFilteredSelected,
-    isSomeFilteredSelected,
-    setActiveTab,
-    setContacts,
-    addContacts,
-    removeContact,
-    clearAllContacts,
-    toggleSelectContact,
-    selectAllFiltered,
-    deselectAll,
-    setFilters,
-    resetFilters,
-    setIsComposerOpen,
-    setComposerMessage,
-    showToast,
-    hideToast,
-    triggerSendSMS,
-    loadSampleData,
-    refreshContacts,
-  };
+  // Backwards compatibility mappings
+  const contacts: Contact[] = useMemo(() => students.map(mapStudentToContact), [students]);
+  const filteredContacts: Contact[] = useMemo(() => filteredStudents.map(mapStudentToContact), [filteredStudents]);
+  const selectedContacts: Contact[] = useMemo(() => resolvedRecipients.map(mapStudentToContact), [resolvedRecipients]);
 
-  return <SMSContext.Provider value={value}>{children}</SMSContext.Provider>;
+  const loadSampleData = useCallback(() => {
+    refreshStudents();
+  }, [refreshStudents]);
+
+  return (
+    <SMSContext.Provider
+      value={{
+        students,
+        selectedStudentIds,
+        isLoadingStudents,
+        isSupabaseLive,
+        filters,
+        filteredStudents,
+        departments,
+        stages,
+        isAllFilteredSelected,
+        isSomeFilteredSelected,
+        targetingMode,
+        targetDepartments,
+        targetStage,
+        targetCombinedDept,
+        targetCombinedStage,
+        resolvedRecipients,
+        targetSummaryText,
+        isComposerOpen,
+        composerMessage,
+        isSending,
+        sendProgress,
+        toast,
+        campaignHistory,
+        activeTab,
+
+        // Backwards compatibility
+        contacts,
+        selectedContacts,
+        filteredContacts,
+        selectedContactIds: selectedStudentIds,
+        isLoadingContacts: isLoadingStudents,
+        addContacts,
+
+        // Actions
+        setActiveTab,
+        setFilters,
+        resetFilters,
+        toggleSelectStudent,
+        selectAllFiltered,
+        deselectAll,
+        createStudent,
+        editStudent,
+        removeStudent,
+        refreshStudents,
+        setTargetingMode,
+        setTargetDepartments,
+        toggleTargetDepartment,
+        setTargetStage,
+        setTargetCombinedDept,
+        setTargetCombinedStage,
+        setIsComposerOpen,
+        setComposerMessage,
+        showToast,
+        hideToast,
+        triggerSendSMS,
+
+        // Aliases
+        toggleSelectContact: toggleSelectStudent,
+        removeContact: removeStudent,
+        refreshContacts: refreshStudents,
+        loadSampleData,
+      }}
+    >
+      {children}
+    </SMSContext.Provider>
+  );
 };
 
-export const useSMS = () => {
+export function useSMS(): SMSContextType {
   const context = useContext(SMSContext);
   if (!context) {
     throw new Error('useSMS must be used within an SMSProvider');
   }
   return context;
-};
+}

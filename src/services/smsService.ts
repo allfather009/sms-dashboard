@@ -83,6 +83,8 @@ export function calculateSMSSegments(message: string): {
 export function renderPersonalizedMessage(template: string, contact: Contact): string {
   return template
     .replace(/{Name}/gi, contact.name || 'Recipient')
+    .replace(/{FullName}/gi, contact.name || 'Recipient')
+    .replace(/{StudentID}/gi, contact.studentId || '')
     .replace(/{Phone}/gi, contact.phoneNumber || '')
     .replace(/{PhoneNumber}/gi, contact.phoneNumber || '')
     .replace(/{Department}/gi, contact.department || 'Department')

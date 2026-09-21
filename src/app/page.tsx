@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { SMSProvider, useSMS } from '@/context/SMSContext';
 import { Navbar } from '@/components/Navbar';
-import { ContactTable } from '@/components/ContactTable';
+import { StudentTable } from '@/components/StudentTable';
 import { UploadZone } from '@/components/UploadZone';
 import { SMSComposer } from '@/components/SMSComposer';
 import { DynamicIslandToast } from '@/components/DynamicIslandToast';
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
-  const { activeTab, setActiveTab, selectedContacts, setIsComposerOpen } = useSMS();
+  const { activeTab, setActiveTab, resolvedRecipients, setIsComposerOpen } = useSMS();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
@@ -34,23 +34,23 @@ function DashboardContent() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#0071e3]">
-                Bulk SMS Communications
+                University Bulk SMS Gateway
               </span>
               <span className="text-zinc-300">•</span>
-              <span className="text-xs text-zinc-500">Enterprise Dashboard</span>
+              <span className="text-xs text-zinc-500 font-medium">Iraq Standard (9647)</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900">
-              Audience & Message Dispatcher
+              Student Directory & Targeted SMS
             </h1>
             <p className="text-xs sm:text-sm text-zinc-500 mt-1 max-w-2xl leading-relaxed">
-              Import contacts via Excel or CSV, filter by department or funnel stage, and transmit high-throughput SMS broadcasts with real-time segment analytics.
+              Manage university students in Supabase, search and filter by Department or Academic Stage, and broadcast Bulk SMS with automated Iraqi phone normalization (9647XXXXXXXXX).
             </p>
           </div>
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 self-start md:self-auto">
             <button
-              onClick={() => setActiveTab(activeTab === 'upload' ? 'contacts' : 'upload')}
+              onClick={() => setActiveTab(activeTab === 'upload' ? 'students' : 'upload')}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all shadow-xs ${
                 activeTab === 'upload'
                   ? 'bg-zinc-900 text-white'
@@ -58,7 +58,7 @@ function DashboardContent() {
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5" />
-              <span>{activeTab === 'upload' ? 'Back to Contacts' : 'Import Contacts'}</span>
+              <span>{activeTab === 'upload' ? 'Back to Students' : 'Import Excel / CSV'}</span>
             </button>
 
             <button
@@ -66,10 +66,10 @@ function DashboardContent() {
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)]"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Compose Message</span>
-              {selectedContacts.length > 0 && (
+              <span>Targeted Broadcast</span>
+              {resolvedRecipients.length > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-white/20 font-mono font-bold">
-                  {selectedContacts.length}
+                  {resolvedRecipients.length}
                 </span>
               )}
             </button>
@@ -81,22 +81,22 @@ function DashboardContent() {
 
         {/* Dynamic View Sections based on activeTab */}
         <div className="transition-all duration-200">
-          {activeTab === 'contacts' && <ContactTable />}
+          {(activeTab === 'students' || (activeTab as string) === 'contacts') && <StudentTable />}
           {activeTab === 'upload' && <UploadZone />}
           {activeTab === 'campaigns' && <CampaignHistory />}
         </div>
       </main>
 
       {/* Floating Quick Compose Pill for mobile or when scrolled */}
-      {selectedContacts.length > 0 && (
+      {resolvedRecipients.length > 0 && (
         <aside 
           aria-label="Selection summary and actions"
           className="fixed bottom-6 right-6 z-40 hidden sm:flex items-center gap-3 p-1.5 pl-4 rounded-full bg-zinc-950/90 text-white backdrop-blur-xl shadow-2xl border border-white/10 animate-in slide-in-from-bottom-3"
         >
           <div className="flex items-center gap-2 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold">{selectedContacts.length}</span>
-            <span className="text-zinc-400">selected</span>
+            <span className="font-semibold">{resolvedRecipients.length}</span>
+            <span className="text-zinc-400">targeted</span>
           </div>
 
           <button

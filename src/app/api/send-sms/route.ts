@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
 interface Recipient {
   id: string;
   name: string;
   phoneNumber: string;
+  studentId?: string;
   department?: string;
   stage?: string;
 }
@@ -35,10 +37,12 @@ function calculateSegments(text: string): { segments: number; isUnicode: boolean
   }
 }
 
-// Replace template placeholders like {Name}, {Department}, {Stage}
+// Replace template placeholders like {Name}, {StudentID}, {Department}, {Stage}
 function personalizeMessage(template: string, recipient: Recipient): string {
   return template
     .replace(/{Name}/gi, recipient.name || 'Recipient')
+    .replace(/{FullName}/gi, recipient.name || 'Recipient')
+    .replace(/{StudentID}/gi, recipient.studentId || '')
     .replace(/{Phone}/gi, recipient.phoneNumber || '')
     .replace(/{PhoneNumber}/gi, recipient.phoneNumber || '')
     .replace(/{Department}/gi, recipient.department || 'Department')
@@ -95,16 +99,22 @@ export async function POST(request: NextRequest) {
       // Formats the batch payload and sends via HTTP POST to your SMS provider
       const payload = {
         from: SMS_SENDER_ID,
-        recipients: recipients.map((r) => ({
-          to: r.phoneNumber,
-          text: personalizeMessage(message, r),
-          recipientId: r.id,
-          metadata: {
-            name: r.name,
-            department: r.department,
-            stage: r.stage,
-          },
-        })),
+        recipients: recipients.map((r) => {
+          const norm = normalizeIraqPhoneNumber(r.phoneNumber);
+          const normalizedPhone = norm.isValid ? norm.normalized : r.phoneNumber;
+          return {
+            to: normalizedPhone,
+            text: personalizeMessage(message, r),
+            recipientId: r.id,
+            metadata: {
+              name: r.name,
+              studentId: r.studentId,
+              department: r.department,
+              stage: r.stage,
+              phoneFormat: norm.isValid ? 'Bulk SMS Iraq (9647XXXXXXXXX)' : 'Unformatted',
+            },
+          };
+        }),
       };
 
       const providerResponse = await fetch(SMS_API_URL!, {

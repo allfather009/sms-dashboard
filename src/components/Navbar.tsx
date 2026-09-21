@@ -52,15 +52,15 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
         {/* macOS-style Segmented Control */}
         <nav className="hidden md:flex items-center bg-zinc-200/60 p-1 rounded-xl border border-black/[0.04]">
           <button
-            onClick={() => setActiveTab('contacts')}
+            onClick={() => setActiveTab('students')}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              activeTab === 'contacts'
-                ? 'bg-white text-zinc-900 shadow-sm'
+              activeTab === 'students' || (activeTab as string) === 'contacts'
+                ? 'bg-white text-zinc-900 shadow-sm font-semibold'
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>Contacts</span>
+            <Users className="w-3.5 h-3.5 text-[#0071e3]" />
+            <span>Students</span>
             <span className="ml-0.5 px-1.5 py-0.2 text-[10px] rounded-full bg-zinc-100 text-zinc-600 font-mono">
               {contacts.length}
             </span>

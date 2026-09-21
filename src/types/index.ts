@@ -1,12 +1,26 @@
+export interface Student {
+  id: string;
+  studentId: string;
+  fullName: string;
+  department: string;
+  stage: string;
+  phoneNumber: string;
+  createdAt: string;
+}
+
+// Backwards compatibility alias for contacts
 export interface Contact {
   id: string;
   name: string;
   phoneNumber: string;
   department: string;
   stage: string;
+  studentId?: string;
   email?: string;
   createdAt: string;
 }
+
+export type TargetingMode = 'selected' | 'department' | 'stage' | 'combined';
 
 export interface FilterState {
   searchQuery: string;
