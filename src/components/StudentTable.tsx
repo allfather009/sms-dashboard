@@ -108,6 +108,7 @@ export const StudentTable: React.FC = () => {
     if (s.includes('2')) return 'text-indigo-600 bg-indigo-50 border-indigo-200/60';
     if (s.includes('3')) return 'text-violet-600 bg-violet-50 border-violet-200/60';
     if (s.includes('4')) return 'text-emerald-600 bg-emerald-50 border-emerald-200/60';
+    if (s.includes('5')) return 'text-amber-600 bg-amber-50 border-amber-200/60';
     return 'text-zinc-600 bg-zinc-100 border-zinc-200/60';
   };
 

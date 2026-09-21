@@ -225,13 +225,15 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return Array.from(set).sort();
   }, [students]);
 
-  // Unique stages list
+  // Unique stages list (including standard academic stages)
   const stages = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5']);
     students.forEach((s) => {
       if (s.stage) set.add(s.stage);
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
   }, [students]);
 
   // Filtered students by search query (Full Name, Student ID, Phone Number), Department, and Stage

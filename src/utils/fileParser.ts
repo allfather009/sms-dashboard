@@ -280,6 +280,13 @@ export function downloadSampleCSV(): void {
       'Academic Stage': 'Stage 1',
       'Phone Number': '07806789012',
     },
+    {
+      'Student ID': 'U2024-1007',
+      'Full Name': 'Ahmed Tariq Al-Bayati',
+      Department: 'Pharmacy',
+      'Academic Stage': 'Stage 5',
+      'Phone Number': '07501234567',
+    },
   ];
 
   const csvContent = Papa.unparse(sampleData);

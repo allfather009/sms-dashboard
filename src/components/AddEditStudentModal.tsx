@@ -39,7 +39,7 @@ const DEPARTMENT_PRESETS = [
   'Pharmacy',
 ];
 
-const STAGE_PRESETS = ['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Postgraduate'];
+const STAGE_PRESETS = ['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5', 'Postgraduate'];
 
 export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   isOpen,
