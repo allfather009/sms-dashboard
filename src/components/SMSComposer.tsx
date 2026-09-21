@@ -135,11 +135,19 @@ export const SMSComposer: React.FC = () => {
               </span>
             </div>
 
-            <p className="text-xs text-zinc-600">
-              Sending to <span className="font-semibold text-zinc-900">{selectedContacts.length} contacts</span>
-              {filters.department !== 'All' ? ` in ${filters.department}` : ' across All Departments'}
-              {filters.stage !== 'All' ? ` (${filters.stage})` : ''}.
-            </p>
+            <div className="text-xs text-zinc-700 bg-white/70 px-3 py-2 rounded-xl border border-blue-200/50">
+              <span className="text-zinc-500 font-medium">Audience: </span>
+              <span className="font-semibold text-zinc-900">
+                Sending to {selectedContacts.length} contact{selectedContacts.length !== 1 ? 's' : ''}:{' '}
+                <span className="text-[#0071e3]">
+                  {filters.stage !== 'All' ? filters.stage : 'All Stages'}
+                </span>{' '}
+                /{' '}
+                <span className="text-[#0071e3]">
+                  {filters.department !== 'All' ? filters.department : 'All Departments'}
+                </span>
+              </span>
+            </div>
 
             {/* Recipient Pill Preview */}
             <div className="flex flex-wrap gap-1 pt-1">
