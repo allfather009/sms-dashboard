@@ -2,23 +2,21 @@
 
 import React, { useState, useRef } from 'react';
 import { useSMS } from '@/context/SMSContext';
-import { parseContactFile, downloadSampleCSV, getSampleContacts } from '@/utils/fileParser';
-import { batchInsertContactsToSupabase } from '@/services/contactService';
+import { parseContactFile, downloadSampleCSV } from '@/utils/fileParser';
+import { batchInsertStudentsToSupabase } from '@/services/studentService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { 
   UploadCloud, 
   Download, 
-  Sparkles, 
   CheckCircle2, 
   AlertCircle, 
   FileText, 
   RefreshCw,
-  Plus,
-  Database
+  GraduationCap
 } from 'lucide-react';
 
 export const UploadZone: React.FC = () => {
-  const { addContacts, contacts, setActiveTab, showToast } = useSMS();
+  const { addContacts, refreshStudents, students, setActiveTab, showToast } = useSMS();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,33 +37,32 @@ export const UploadZone: React.FC = () => {
     try {
       const result = await parseContactFile(file);
 
-      if (result.contacts.length === 0) {
-        throw new Error('No valid contacts found. Ensure the file includes phone numbers and names.');
+      if (result.students.length === 0) {
+        throw new Error('No valid students found. Ensure the file includes Student ID, Name, and Iraqi Phone Numbers.');
       }
 
       let persisted = false;
 
-      // Batch insert to Supabase if configured
+      // Batch insert directly into public.students in Supabase
       if (isSupabaseConfigured()) {
-        const insertRes = await batchInsertContactsToSupabase(result.contacts);
+        const insertRes = await batchInsertStudentsToSupabase(result.students);
         if (insertRes.error) {
           console.warn('Supabase batch insert error:', insertRes.error);
           showToast({
             type: 'warning',
             title: 'Saved Locally',
-            message: `Could not reach Supabase (${insertRes.error}). Contacts saved to local workspace.`,
+            message: `Could not reach Supabase (${insertRes.error}). Students saved to local state.`,
             duration: 6000,
           });
-          // Fall back to local array
+          // Fall back to local state
           addContacts(result.contacts, appendMode);
         } else {
           persisted = true;
-          // Use contacts with Supabase-generated UUIDs
-          addContacts(insertRes.insertedContacts, appendMode);
+          await refreshStudents();
           showToast({
             type: 'success',
             title: 'Saved to Supabase DB',
-            message: `Successfully batch-inserted ${insertRes.count} contacts to public.contacts table.`,
+            message: `Successfully batch-inserted ${insertRes.count} students into public.students.`,
           });
         }
       } else {
@@ -74,20 +71,20 @@ export const UploadZone: React.FC = () => {
         showToast({
           type: 'info',
           title: 'Imported Locally',
-          message: `${result.contacts.length} contacts imported. Add Supabase URL in .env.local for database persistence.`,
+          message: `${result.students.length} students imported into workspace.`,
         });
       }
 
       setImportStats({
         fileName: file.name,
-        count: result.contacts.length,
+        count: result.students.length,
         columns: result.columnsFound,
         persistedToSupabase: persisted,
       });
 
-      // Auto-switch to contacts tab after brief delay
+      // Auto-switch to students tab after brief delay
       setTimeout(() => {
-        setActiveTab('contacts');
+        setActiveTab('students');
       }, 1600);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to parse file';
@@ -115,37 +112,33 @@ export const UploadZone: React.FC = () => {
     setIsDragOver(true);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
     setIsDragOver(false);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      handleFileProcess(e.target.files[0]);
+      const file = e.target.files[0];
+      handleFileProcess(file);
     }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Upload Card */}
-      <div className="apple-glass-card rounded-3xl p-8 transition-all relative overflow-hidden">
-        {/* Decorative background gradient */}
-        <div className="absolute -right-24 -top-24 w-72 h-72 bg-blue-100/50 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -left-24 -bottom-24 w-72 h-72 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col items-center text-center">
-          {/* Header Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/50 text-emerald-700 text-xs font-semibold mb-4">
-            <Database className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Supabase Cloud Database Pipeline</span>
+      <div className="apple-glass-card rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden border border-black/[0.06] shadow-sm">
+        <div className="max-w-xl mx-auto flex flex-col items-center">
+          {/* Header */}
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0071e3] flex items-center justify-center mb-3.5 shadow-xs border border-blue-200/50">
+            <GraduationCap className="w-6 h-6" />
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 mb-2">
-            Import & Sync Recipient Contacts
+          <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-1">
+            Import Student Directory
           </h2>
-          <p className="text-sm text-zinc-500 max-w-lg mb-8 leading-relaxed">
-            Drag and drop your contact spreadsheet. Files are parsed on the client side and{' '}
-            <span className="font-semibold text-zinc-800">batch-inserted directly into Supabase</span> with full RLS policy support.
+          <p className="text-xs sm:text-sm text-zinc-500 mb-6 max-w-md leading-relaxed">
+            Upload student lists from Excel or CSV files. Auto-detects Student ID, Full Name, Department, Stage, and formats Iraqi mobile numbers.
           </p>
 
           {/* Drag and drop zone */}
@@ -179,13 +172,13 @@ export const UploadZone: React.FC = () => {
             <div className="space-y-1.5">
               <p className="text-sm font-semibold text-zinc-800">
                 {isProcessing
-                  ? 'Parsing & Batch Inserting to Database...'
-                  : 'Click to select or drag & drop file here'}
+                  ? 'Parsing & Batch Inserting to Supabase students table...'
+                  : 'Click to select or drag & drop student file here'}
               </p>
               <p className="text-xs text-zinc-400">
                 Supports <span className="font-mono text-zinc-600">.CSV</span>,{' '}
                 <span className="font-mono text-zinc-600">.XLSX</span>, and{' '}
-                <span className="font-mono text-zinc-600">.XLS</span> (batch inserts to Supabase)
+                <span className="font-mono text-zinc-600">.XLS</span>
               </p>
             </div>
           </div>
@@ -199,7 +192,7 @@ export const UploadZone: React.FC = () => {
                 onChange={(e) => setAppendMode(e.target.checked)}
                 className="rounded text-[#0071e3] focus:ring-[#0071e3] w-3.5 h-3.5"
               />
-              <span>Append to existing contacts ({contacts.length} currently loaded)</span>
+              <span>Append to existing directory ({students.length} currently loaded)</span>
             </label>
           </div>
 
@@ -217,12 +210,12 @@ export const UploadZone: React.FC = () => {
               <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-600" />
               <div className="flex-1">
                 <div className="font-semibold">
-                  Successfully parsed {importStats.count} contacts from &ldquo;{importStats.fileName}&rdquo;!
+                  Successfully parsed {importStats.count} students from &ldquo;{importStats.fileName}&rdquo;!
                 </div>
                 <div className="text-emerald-700/80 mt-0.5 text-[11px]">
                   {importStats.persistedToSupabase
-                    ? '✓ Batch-inserted into Supabase public.contacts table'
-                    : 'Populated into local workspace. Add your Supabase project URL in .env.local to persist to cloud.'}
+                    ? '✓ Batch-inserted into live Supabase public.students table'
+                    : 'Imported into current session.'}
                 </div>
               </div>
             </div>
@@ -230,54 +223,25 @@ export const UploadZone: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Helper Tools Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Sample Dataset Loader */}
-        <div className="apple-glass-card rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-zinc-900">
-              Need sample data to evaluate?
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5 mb-3 leading-relaxed">
-              Instantly populate your dashboard with 12 enterprise contacts across Sales, Engineering, HR, and Product.
-            </p>
-            <button
-              onClick={() => {
-                const samples = getSampleContacts();
-                addContacts(samples, appendMode);
-                setActiveTab('contacts');
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98] transition-all shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Load 12 Sample Contacts</span>
-            </button>
-          </div>
+      {/* CSV Template Downloader */}
+      <div className="apple-glass-card rounded-2xl p-5 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0071e3] flex items-center justify-center flex-shrink-0">
+          <FileText className="w-5 h-5" />
         </div>
-
-        {/* Template Downloader */}
-        <div className="apple-glass-card rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0071e3] flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-zinc-900">
-              Download CSV Template
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5 mb-3 leading-relaxed">
-              Get a clean CSV template matching the exact schema columns for seamless bulk uploads to Supabase.
-            </p>
-            <button
-              onClick={downloadSampleCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white text-zinc-800 border border-zinc-200 hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5 text-zinc-500" />
-              <span>Download .CSV Template</span>
-            </button>
-          </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            Download Student Import Template (.CSV)
+          </h3>
+          <p className="text-xs text-zinc-500 mt-0.5 mb-3 leading-relaxed">
+            Get a pre-formatted template with Student ID, Full Name, Department, Academic Stage, and Iraqi Phone Numbers for flawless batch uploads.
+          </p>
+          <button
+            onClick={downloadSampleCSV}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white text-zinc-800 border border-zinc-200 hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5 text-zinc-500" />
+            <span>Download Iraq Student Template (.CSV)</span>
+          </button>
         </div>
       </div>
     </div>

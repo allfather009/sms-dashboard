@@ -9,7 +9,7 @@ import {
   deleteStudentFromSupabase,
   mapStudentToContact
 } from '@/services/studentService';
-import { fetchCampaignsFromSupabase, saveCampaignToSupabase } from '@/services/campaignService';
+import { fetchCampaignsFromSupabase } from '@/services/campaignService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
