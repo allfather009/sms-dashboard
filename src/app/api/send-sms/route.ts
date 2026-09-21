@@ -1,52 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
-interface Recipient {
-  id: string;
-  name: string;
-  phoneNumber: string;
-  studentId?: string;
-  department?: string;
-  stage?: string;
-}
+type RecipientItem =
+  | string
+  | {
+      id?: string;
+      name?: string;
+      phoneNumber?: string;
+      phone?: string;
+      studentId?: string;
+      department?: string;
+      stage?: string;
+    };
 
 interface SendSMSRequestBody {
-  recipients: Recipient[];
+  recipients: RecipientItem[];
   message: string;
 }
 
-// Calculate SMS segments (GSM 7-bit: 160 chars; UCS-2: 70 chars)
-function calculateSegments(text: string): { segments: number; isUnicode: boolean } {
-  const gsmRegex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ^{}\\[~\]|€ÆæßÉ !"#%&'()*+,\-./0-9:;<=>?A-Z_a-z]*$/;
-  const isUnicode = !gsmRegex.test(text);
-  const len = text.length;
+/**
+ * Normalizes any Iraqi phone number to Bulk SMS Iraq format:
+ * Must start with 964 and drop any leading zeros (e.g., 0750... -> 964750...)
+ */
+function formatIraqNumber(phone: string): string {
+  if (!phone) return '';
+  // Convert Arabic-Indic numerals (٠-٩) to standard digits (0-9)
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let clean = String(phone)
+    .replace(/[٠-٩]/g, (d) => arabicDigits.indexOf(d).toString())
+    .replace(/[^0-9]/g, '');
 
-  if (len === 0) return { segments: 1, isUnicode: false };
-
-  if (isUnicode) {
-    return {
-      segments: len <= 70 ? 1 : Math.ceil(len / 67),
-      isUnicode: true,
-    };
-  } else {
-    return {
-      segments: len <= 160 ? 1 : Math.ceil(len / 153),
-      isUnicode: false,
-    };
+  // Strip international double-zero if present: 009647... -> 9647...
+  if (clean.startsWith('00964')) {
+    clean = clean.substring(2);
   }
+
+  // If local format starting with 07... (11 digits), drop leading 0 and prepend 964 -> 9647...
+  if (clean.startsWith('07') && clean.length === 11) {
+    clean = '964' + clean.substring(1);
+  } else if (clean.startsWith('7') && clean.length === 10) {
+    // Local format without leading 0 (7XXXXXXXXX) -> prepend 964 -> 9647...
+    clean = '964' + clean;
+  } else if (clean.startsWith('96407') && clean.length === 14) {
+    // Erroneous double-zero/code (96407...) -> 9647...
+    clean = '964' + clean.substring(4);
+  }
+
+  return clean;
 }
 
-// Replace template placeholders like {Name}, {StudentID}, {Department}, {Stage}
-function personalizeMessage(template: string, recipient: Recipient): string {
+/**
+ * Replace personalization tokens like {Name}, {StudentID}, {Department}, {Stage}
+ */
+function personalize(template: string, item: RecipientItem): string {
+  if (typeof item === 'string') return template;
+
   return template
-    .replace(/{Name}/gi, recipient.name || 'Recipient')
-    .replace(/{FullName}/gi, recipient.name || 'Recipient')
-    .replace(/{StudentID}/gi, recipient.studentId || '')
-    .replace(/{Phone}/gi, recipient.phoneNumber || '')
-    .replace(/{PhoneNumber}/gi, recipient.phoneNumber || '')
-    .replace(/{Department}/gi, recipient.department || 'Department')
-    .replace(/{Stage}/gi, recipient.stage || 'Stage');
+    .replace(/{Name}/gi, item.name || 'Student')
+    .replace(/{FullName}/gi, item.name || 'Student')
+    .replace(/{StudentID}/gi, item.studentId || '')
+    .replace(/{Department}/gi, item.department || '')
+    .replace(/{Stage}/gi, item.stage || '')
+    .replace(/{Phone}/gi, item.phoneNumber || item.phone || '')
+    .replace(/{PhoneNumber}/gi, item.phoneNumber || item.phone || '');
 }
 
 export async function POST(request: NextRequest) {
@@ -57,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(
-        { error: 'No recipients provided. Please select at least one contact.' },
+        { error: 'No recipients provided. Please select at least one recipient.' },
         { status: 400 }
       );
     }
@@ -69,132 +85,160 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Server-side Environment Variables (Securely stored on server, never sent to browser)
-    const SMS_API_URL = process.env.SMS_API_URL;
+    // Live Provider Configuration from .env.local (Server-Side only, never exposed to browser)
+    const SMS_API_URL = process.env.SMS_API_URL || 'https://gateway.standingtech.com/api/v4/sms/send';
     const SMS_API_KEY = process.env.SMS_API_KEY;
-    const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'AIRSMS';
+    const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'TIUSuli';
 
-    const isLiveProviderConfigured = Boolean(
-      SMS_API_URL &&
-      SMS_API_KEY &&
-      !SMS_API_URL.includes('your-provider') &&
-      !SMS_API_KEY.includes('your_live_api_key')
-    );
-
-    const { segments } = calculateSegments(message);
-    const totalSegments = segments * recipients.length;
-    const batchId = `BATCH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const batchId = `TIU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const startTime = Date.now();
 
-    let deliveredCount = recipients.length;
+    const results: Array<{
+      recipient: string;
+      originalPhone: string;
+      success: boolean;
+      status?: number;
+      response?: unknown;
+      error?: string;
+    }> = [];
+
+    let deliveredCount = 0;
     let failedCount = 0;
-    let providerName = 'AirSMS Server Simulator';
 
-    if (isLiveProviderConfigured) {
-      providerName = new URL(SMS_API_URL!).hostname;
+    // Loop through each recipient and dispatch to Standing Tech v4 endpoint
+    for (const item of recipients) {
+      const rawPhone = typeof item === 'string' ? item : item.phoneNumber || item.phone || '';
+      const formattedNumber = formatIraqNumber(rawPhone);
+      const personalizedMessage = personalize(message, item);
 
-      // ========================================================================
-      // LIVE SMS PROVIDER DISPATCH
-      // ========================================================================
-      // Formats the batch payload and sends via HTTP POST to your SMS provider
-      const payload = {
-        from: SMS_SENDER_ID,
-        recipients: recipients.map((r) => {
-          const norm = normalizeIraqPhoneNumber(r.phoneNumber);
-          const normalizedPhone = norm.isValid ? norm.normalized : r.phoneNumber;
-          return {
-            to: normalizedPhone,
-            text: personalizeMessage(message, r),
-            recipientId: r.id,
-            metadata: {
-              name: r.name,
-              studentId: r.studentId,
-              department: r.department,
-              stage: r.stage,
-              phoneFormat: norm.isValid ? 'Bulk SMS Iraq (9647XXXXXXXXX)' : 'Unformatted',
-            },
-          };
-        }),
-      };
-
-      const providerResponse = await fetch(SMS_API_URL!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SMS_API_KEY}`,
-          'X-Provider-Key': SMS_API_KEY!,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!providerResponse.ok) {
-        const errText = await providerResponse.text().catch(() => 'Unknown provider error');
-        console.error('SMS Provider HTTP Error:', providerResponse.status, errText);
-        return NextResponse.json(
-          {
-            error: `SMS Provider rejected request (${providerResponse.status}): ${errText}`,
-            batchId,
-          },
-          { status: 502 }
-        );
+      if (!formattedNumber) {
+        failedCount++;
+        results.push({
+          recipient: '',
+          originalPhone: rawPhone,
+          success: false,
+          error: 'Empty or invalid phone number',
+        });
+        continue;
       }
-    } else {
-      // ========================================================================
-      // SIMULATED PROVIDER DISPATCH (2.0s realistic delay)
-      // ========================================================================
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Check if live API key is configured
+      if (!SMS_API_KEY || SMS_API_KEY.includes('your_live_api_key')) {
+        // Safe simulation fallback if keys are missing
+        await new Promise((r) => setTimeout(r, 150));
+        deliveredCount++;
+        results.push({
+          recipient: formattedNumber,
+          originalPhone: rawPhone,
+          success: true,
+          response: { simulated: true, note: 'Simulation mode (SMS_API_KEY not configured)' },
+        });
+        continue;
+      }
+
+      try {
+        // Payload required by Standing Tech API v4
+        const payload = {
+          recipient: formattedNumber,
+          sender_id: SMS_SENDER_ID,
+          type: 'plain',
+          message: personalizedMessage,
+          lang: 'en',
+        };
+
+        const providerResponse = await fetch(SMS_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SMS_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const resData = await providerResponse.json().catch(() => null);
+
+        if (providerResponse.ok) {
+          deliveredCount++;
+          results.push({
+            recipient: formattedNumber,
+            originalPhone: rawPhone,
+            success: true,
+            status: providerResponse.status,
+            response: resData,
+          });
+        } else {
+          failedCount++;
+          results.push({
+            recipient: formattedNumber,
+            originalPhone: rawPhone,
+            success: false,
+            status: providerResponse.status,
+            error: resData ? JSON.stringify(resData) : `HTTP ${providerResponse.status}`,
+          });
+        }
+      } catch (err: unknown) {
+        failedCount++;
+        const errMsg = err instanceof Error ? err.message : String(err);
+        results.push({
+          recipient: formattedNumber,
+          originalPhone: rawPhone,
+          success: false,
+          error: errMsg,
+        });
+      }
     }
 
     const durationMs = Date.now() - startTime;
 
-    // Persist campaign record to Supabase if connected
+    // Persist campaign record to Supabase
     try {
       const supabase = await createClient();
       await supabase.from('campaign_history').insert({
         batch_id: batchId,
-        status: 'delivered',
+        status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
         recipient_count: recipients.length,
-        total_segments: totalSegments,
+        total_segments: recipients.length,
         delivered_count: deliveredCount,
         failed_count: failedCount,
-        message_preview: message.length > 100 ? `${message.substring(0, 97)}...` : message,
+        message_preview: message.length > 90 ? `${message.substring(0, 87)}...` : message,
         sent_at: new Date().toISOString(),
-        recipients: recipients.map((r) => ({
-          id: r.id,
-          name: r.name,
-          phoneNumber: r.phoneNumber,
-          department: r.department || '',
-          stage: r.stage || '',
+        recipients: results.map((r) => ({
+          phoneNumber: r.recipient,
+          originalPhone: r.originalPhone,
+          success: r.success,
+          error: r.error,
         })),
         provider_details: {
-          providerName,
+          providerName: 'Standing Tech (Bulk SMS Iraq v4)',
+          senderId: SMS_SENDER_ID,
+          endpoint: SMS_API_URL,
           latencyMs: durationMs,
-          simulated: !isLiveProviderConfigured,
-          endpointPlaceholder: SMS_API_URL || '(Simulation mode)',
         },
       });
     } catch (dbErr) {
-      console.warn('Failed to record campaign history in Supabase:', dbErr);
+      console.warn('Supabase campaign logging notice:', dbErr);
     }
 
     return NextResponse.json({
-      success: true,
+      success: deliveredCount > 0,
       batchId,
-      status: 'delivered',
+      status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
       recipientCount: recipients.length,
-      totalSegments,
       deliveredCount,
       failedCount,
       latencyMs: durationMs,
-      isSimulated: !isLiveProviderConfigured,
-      providerName,
+      senderId: SMS_SENDER_ID,
+      provider: 'Standing Tech (Bulk SMS Iraq v4)',
       sentAt: new Date().toISOString(),
-      message: isLiveProviderConfigured
-        ? `Successfully sent ${totalSegments} SMS segment(s) to ${deliveredCount} contact(s) via ${providerName}.`
-        : `Successfully dispatched to ${deliveredCount} contact(s) via carrier simulation (2s latency).`,
+      results,
+      message:
+        failedCount === 0
+          ? `Successfully sent ${deliveredCount} SMS via ${SMS_SENDER_ID}.`
+          : `Dispatched ${deliveredCount} of ${recipients.length} messages (${failedCount} failed).`,
     });
   } catch (error: unknown) {
-    console.error('Server error in /api/send-sms:', error);
+    console.error('Error in /api/send-sms:', error);
     const msg = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
