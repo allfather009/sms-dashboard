@@ -1,0 +1,11 @@
+# Netlify Configuration
+# See https://ntl.fyi/configure-secrets-scanning
+
+[build]
+  command = "npm run build"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**"
+
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**"
