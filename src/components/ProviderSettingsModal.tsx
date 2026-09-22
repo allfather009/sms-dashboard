@@ -38,7 +38,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_cEj9W2JskGN2cAyNfTy3IA_jdyBOl0a"
 # ==============================================
 NEXT_PUBLIC_SMS_API_KEY="your_live_api_key_here"
 NEXT_PUBLIC_SMS_API_ENDPOINT="https://api.your-provider.com/v1/messages"
-NEXT_PUBLIC_SMS_SENDER_ID="AIRSMS"`;
+NEXT_PUBLIC_SMS_SENDER_ID="TIUSMS"`;
 
   const sqlSnippet = `-- Create students table with strict Stage CHECK constraint
 CREATE TABLE IF NOT EXISTS public.students (

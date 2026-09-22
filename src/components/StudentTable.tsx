@@ -141,7 +141,7 @@ export const StudentTable: React.FC = () => {
       'Full Name': s.fullName,
       'Department': s.department,
       'Stage': s.stage,
-      'Phone Number': s.phoneNumber,
+      'Phone Number': '\t' + s.phoneNumber,
     }));
 
     const csvContent = Papa.unparse(exportRows);
@@ -169,8 +169,9 @@ export const StudentTable: React.FC = () => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5">
       {/* Top Search, Filter, and Action Controls - Sticky Container */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-md pb-4 pt-2 border-b border-black/[0.06] rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5">
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b pb-3 pt-2 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xs">
+        {/* Row 1 (Search & Filters): Live search bar alongside dropdown filters */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
           <div className="relative flex-1 max-w-lg">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -179,7 +180,7 @@ export const StudentTable: React.FC = () => {
               value={filters.searchQuery}
               onChange={(e) => setFilters({ searchQuery: e.target.value })}
               placeholder="Filter by Full Name, Student ID, or Phone..."
-              className="w-full pl-9 pr-8 py-2.5 text-xs sm:text-sm bg-zinc-100/80 hover:bg-zinc-100 focus:bg-white text-zinc-900 placeholder-zinc-400 rounded-xl border border-transparent focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+              className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-zinc-100/80 hover:bg-zinc-100 focus:bg-white text-zinc-900 placeholder-zinc-400 rounded-xl border border-transparent focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
             />
             {filters.searchQuery && (
               <button
@@ -256,7 +257,13 @@ export const StudentTable: React.FC = () => {
                 <span>Reset</span>
               </button>
             )}
+          </div>
+        </div>
 
+        {/* Row 2 (Controls & Actions): Left-aligned status indicators and right-aligned action buttons */}
+        <div className="flex items-center justify-between flex-wrap gap-2.5 pt-2 border-t border-black/[0.04]">
+          {/* Left-aligned status indicators (Supabase Live, Sync) */}
+          <div className="flex items-center gap-2">
             {/* Supabase Status Indicator */}
             <div
               className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
@@ -267,25 +274,28 @@ export const StudentTable: React.FC = () => {
               title="Connected to Supabase students table"
             >
               <Database className="w-3 h-3" />
-              <span className="hidden sm:inline">Supabase Live</span>
+              <span>Supabase Live</span>
             </div>
 
             {/* Sync Button */}
             <button
               onClick={handleManualRefresh}
               disabled={isRefreshing || isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
               title="Sync table from Supabase"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#0071e3]' : ''}`} />
-              <span className="hidden sm:inline">Sync</span>
+              <span>Sync</span>
             </button>
+          </div>
 
+          {/* Right-aligned action buttons (Export Selected, + Add Student) */}
+          <div className="flex items-center gap-2">
             {/* Export Selected Button */}
             <button
               onClick={handleExportSelected}
               disabled={isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
               title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
             >
               <Download className="w-3.5 h-3.5 text-zinc-600" />
@@ -297,13 +307,13 @@ export const StudentTable: React.FC = () => {
               )}
             </button>
 
-            {/* Primary Action: Add Student */}
+            {/* Primary Action: + Add Student */}
             <button
               onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.3)]"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Student</span>
+              <span>+ Add Student</span>
             </button>
           </div>
         </div>

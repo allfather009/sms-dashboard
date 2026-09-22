@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'AirSMS Studio — Apple-Inspired SMS Management Dashboard',
-  description: 'Modern bulk SMS dispatcher with client-side Excel/CSV parsing, department & funnel filtering, and real-time segment analysis.',
+  title: 'TIUS SMS Dashboard — Tishk International University Sulaimani',
+  description: 'Official student communication portal for broadcasting SMS announcements across academic stages and departments.',
 };
 
 export default function RootLayout({

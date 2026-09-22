@@ -568,7 +568,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           stage: r.stage,
         })),
         providerDetails: {
-          providerName: result.providerName || 'AirSMS Iraq Gateway',
+          providerName: result.providerName || 'TIUS Direct Gateway',
           latencyMs: result.latencyMs || 2000,
           simulated: Boolean(result.isSimulated),
           endpointPlaceholder: result.isSimulated ? '(Simulation Mode)' : 'Live Carrier Gateway',

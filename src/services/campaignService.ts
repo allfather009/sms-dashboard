@@ -39,7 +39,7 @@ export function mapRowToCampaign(row: DatabaseCampaignRow): SMSBatchResult {
     sentAt: row.sent_at,
     recipients: row.recipients || [],
     providerDetails: row.provider_details || {
-      providerName: 'AirSMS Carrier Simulation',
+      providerName: 'TIUS Direct Gateway',
       latencyMs: 2000,
       simulated: true,
       endpointPlaceholder: '',

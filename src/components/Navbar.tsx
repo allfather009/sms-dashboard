@@ -34,11 +34,11 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-zinc-900 tracking-tight text-base">
-                  AirSMS
+                <span className="font-bold text-zinc-900 tracking-tight text-base">
+                  TIUS
                 </span>
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-[#0071e3] bg-blue-50 border border-blue-200/60 px-1.5 py-0.2 rounded-full">
-                  Studio
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#0071e3] bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
+                  SMS Dashboard
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">

@@ -79,8 +79,8 @@ export const DashboardStats: React.FC = () => {
             <span>Send Broadcast</span>
           </div>
           <span className="text-[11px] text-zinc-500 flex items-center gap-1 mt-1">
-            <Zap className="w-3 h-3 text-amber-500" />
-            <span>2s Carrier simulation</span>
+            <Zap className="w-3 h-3 text-[#0071e3]" />
+            <span>Direct Gateway Dispatch</span>
           </span>
         </div>
         <div className="w-10 h-10 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center group-hover:scale-105 transition-transform shadow-[0_2px_10px_rgba(0,113,227,0.3)]">

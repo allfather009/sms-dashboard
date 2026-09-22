@@ -32,18 +32,16 @@ function DashboardContent() {
         {/* Hero Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#0071e3]">
-                University Bulk SMS Gateway
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-semibold tracking-wide text-[#0071e3] bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full">
+                Tishk International University — Sulaimani
               </span>
-              <span className="text-zinc-300">•</span>
-              <span className="text-xs text-zinc-500 font-medium">Iraq Standard (9647)</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900">
-              Student Directory & Targeted SMS
+              Student Communications & SMS Directory
             </h1>
             <p className="text-xs sm:text-sm text-zinc-500 mt-1 max-w-2xl leading-relaxed">
-              Manage university students in Supabase, search and filter by Department or Academic Stage, and broadcast Bulk SMS with automated Iraqi phone normalization (9647XXXXXXXXX).
+              Official student communication portal for broadcasting SMS announcements across academic stages and departments.
             </p>
           </div>
 
@@ -120,7 +118,7 @@ function DashboardContent() {
 
       {/* Minimal Footer */}
       <footer className="mt-auto py-6 border-t border-black/[0.04] text-center text-xs text-zinc-400">
-        <p>AirSMS Studio • Designed with Apple Human Interface Guidelines</p>
+        <p>TIUS SMS Dashboard • Tishk International University Sulaimani</p>
       </footer>
     </div>
   );

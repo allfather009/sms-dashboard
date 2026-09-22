@@ -160,7 +160,7 @@ export async function sendBulkSMS(
         stage: c.stage,
       })),
       providerDetails: {
-        providerName: data.providerName || 'AirSMS Dispatcher',
+        providerName: data.providerName || 'TIUS Dispatcher',
         latencyMs: data.latencyMs || 2000,
         simulated: Boolean(data.isSimulated),
         endpointPlaceholder: '/api/send-sms',
