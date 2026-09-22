@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useSMS } from '@/context/SMSContext';
-import { calculateSMSSegments } from '@/services/smsService';
+import { analyzeSMSContent } from '@/utils/smsAnalyzer';
 import { fetchTemplatesFromSupabase, FALLBACK_TEMPLATES } from '@/services/templateService';
 import { SMSTemplate, TargetingMode } from '@/types';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
@@ -18,7 +18,9 @@ import {
   Layers,
   CheckCircle2,
   Filter,
-  Check
+  Check,
+  Globe,
+  AlertTriangle
 } from 'lucide-react';
 
 export const SMSComposer: React.FC = () => {
@@ -59,11 +61,12 @@ export const SMSComposer: React.FC = () => {
     });
   }, []);
 
-  // Character and segment calculations
-  const { charCount, segments, isUnicode, remainingInSegment } = useMemo(() => {
-    return calculateSMSSegments(composerMessage);
+  // Dynamic character, Unicode detection, and SMS cost analysis
+  const smsAnalysis = useMemo(() => {
+    return analyzeSMSContent(composerMessage);
   }, [composerMessage]);
 
+  const { charCount, segments, isUnicode, remainingInSegment } = smsAnalysis;
   const totalCampaignSegments = segments * resolvedRecipients.length;
 
   // Phone normalization audit for targeted recipients
@@ -400,14 +403,20 @@ export const SMSComposer: React.FC = () => {
             </div>
           </div>
 
-          {/* Message Textarea */}
-          <div className="space-y-1.5">
+          {/* Message Textarea & Dynamic Cost Calculator */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="sms-textarea" className="font-semibold text-zinc-800">
-                Message Content
+              <label htmlFor="sms-textarea" className="font-semibold text-zinc-800 flex items-center gap-1.5">
+                <span>Message Content</span>
+                {isUnicode && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    <Globe className="w-3 h-3" />
+                    <span>Unicode (UCS-2)</span>
+                  </span>
+                )}
               </label>
               <span className="text-[11px] font-mono text-zinc-500">
-                {charCount} chars {isUnicode ? '• UCS-2' : '• GSM-7'}
+                {charCount} chars {isUnicode ? '• 70 chars/seg' : '• 160 chars/seg'}
               </span>
             </div>
 
@@ -423,25 +432,101 @@ export const SMSComposer: React.FC = () => {
               />
             </div>
 
-            {/* Segment and Character Breakdown Badge */}
-            <div className="flex items-center justify-between text-[11px] px-1 text-zinc-500 pt-0.5">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    segments === 1 ? 'bg-emerald-500' : segments === 2 ? 'bg-amber-500' : 'bg-purple-500'
+            {/* Smart Character & Cost Calculator */}
+            <div
+              className={`p-3 rounded-2xl border transition-all duration-300 space-y-2 ${
+                smsAnalysis.statusColor === 'danger'
+                  ? 'bg-rose-50/70 border-rose-200 text-rose-900 shadow-xs'
+                  : smsAnalysis.statusColor === 'warning'
+                  ? 'bg-amber-50/70 border-amber-200 text-amber-900 shadow-xs'
+                  : 'bg-zinc-50/80 border-zinc-200/80 text-zinc-700'
+              }`}
+            >
+              {/* Primary Live Counter Line with dynamic color transitions */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                      smsAnalysis.statusColor === 'danger'
+                        ? 'bg-rose-500 animate-pulse'
+                        : smsAnalysis.statusColor === 'warning'
+                        ? 'bg-amber-500 animate-pulse'
+                        : 'bg-zinc-400'
+                    }`}
+                  />
+                  <span
+                    id="sms-cost-counter"
+                    className={`text-xs font-semibold tracking-tight transition-colors ${
+                      smsAnalysis.statusColor === 'danger'
+                        ? 'text-rose-700 font-bold'
+                        : smsAnalysis.statusColor === 'warning'
+                        ? 'text-amber-700 font-bold'
+                        : 'text-zinc-600 font-medium'
+                    }`}
+                  >
+                    {smsAnalysis.displayText}
+                  </span>
+                </div>
+
+                {/* Encoding & Standard Badge */}
+                <div
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                    isUnicode
+                      ? 'bg-purple-100/70 text-purple-800 border-purple-200'
+                      : 'bg-white text-zinc-600 border-zinc-200'
                   }`}
-                />
-                <span className="font-medium text-zinc-700">
-                  {segments} SMS segment{segments !== 1 ? 's' : ''} per student
+                >
+                  <Globe className="w-3 h-3" />
+                  <span>{isUnicode ? 'Unicode (70 limit)' : 'GSM-7 (160 limit)'}</span>
+                </div>
+              </div>
+
+              {/* Secondary Breakdown Details */}
+              <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[11px] text-zinc-500 flex-wrap gap-1">
+                <span
+                  className={
+                    smsAnalysis.statusColor === 'danger'
+                      ? 'text-rose-700 font-medium'
+                      : smsAnalysis.statusColor === 'warning'
+                      ? 'text-amber-700 font-medium'
+                      : 'text-zinc-500'
+                  }
+                >
+                  {remainingInSegment} char{remainingInSegment !== 1 ? 's' : ''} left in current segment
                 </span>
-                <span className="text-zinc-400">
-                  ({remainingInSegment} char{remainingInSegment !== 1 ? 's' : ''} left in segment)
+
+                <span className="font-mono text-zinc-700">
+                  Total Campaign: <strong className="text-zinc-900 font-bold">{totalCampaignSegments}</strong> credit{totalCampaignSegments !== 1 ? 's' : ''} ({resolvedRecipients.length} recipients)
                 </span>
               </div>
 
-              <div className="font-mono font-semibold text-zinc-900">
-                Total: {totalCampaignSegments} segment{totalCampaignSegments !== 1 ? 's' : ''}
-              </div>
+              {/* Warning Notice: Within 10 characters of segment boundary */}
+              {smsAnalysis.statusColor === 'warning' && (
+                <div className="flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-100/70 p-2 rounded-xl border border-amber-200/80">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Approaching Segment Limit:</strong> Only {remainingInSegment} char{remainingInSegment !== 1 ? 's' : ''} remaining before this message overflows into a 2nd segment, doubling the transmission cost per student.
+                  </span>
+                </div>
+              )}
+
+              {/* Danger Notice: Multi-segment message doubling/multiplying cost */}
+              {smsAnalysis.statusColor === 'danger' && (
+                <div className="flex items-start gap-1.5 text-[11px] text-rose-800 bg-rose-100/70 p-2 rounded-xl border border-rose-200/80">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Multi-Segment Broadcast ({segments} Segments):</strong> This message exceeds 1 SMS segment and costs {smsAnalysis.costMultiplier}x credits per recipient ({totalCampaignSegments} total credits).
+                  </span>
+                </div>
+              )}
+
+              {/* Unicode Detection Note */}
+              {isUnicode && (
+                <div className="text-[10px] text-zinc-500 flex items-center gap-1 pt-0.5">
+                  <span className="font-semibold text-purple-700">Unicode detected:</span>
+                  <span>Non-GSM characters (e.g. Kurdish / Arabic / Emojis) detected. Telecom segment length reduced to 70 characters.</span>
+                </div>
+              )}
             </div>
           </div>
 
