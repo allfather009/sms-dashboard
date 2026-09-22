@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * ==============================================================================
  * SUPABASE CONNECTIVITY & SCHEMA VERIFICATION SCRIPT
@@ -65,21 +66,21 @@ async function runAudit() {
     console.log('❌ 1. Supabase Auth Service unreachable:', err.message);
   }
 
-  // 2. Check contacts table
+  // 2. Check students table
   try {
-    const { data: contacts, error: contactsErr } = await supabase.from('contacts').select('*').limit(3);
-    if (contactsErr) {
-      if (contactsErr.code === 'PGRST205') {
-        console.log('⏳ 2. Table `public.contacts`: Table does not exist in Postgres schema yet (PGRST205).');
+    const { data: students, error: studentsErr } = await supabase.from('students').select('*').limit(3);
+    if (studentsErr) {
+      if (studentsErr.code === 'PGRST205') {
+        console.log('⏳ 2. Table `public.students`: Table does not exist in Postgres schema yet (PGRST205).');
       } else {
-        console.log('⚠️ 2. Table `public.contacts`: Error:', contactsErr.message, contactsErr.code);
+        console.log('⚠️ 2. Table `public.students`: Error:', studentsErr.message, studentsErr.code);
       }
     } else {
-      console.log(`✅ 2. Table \`public.contacts\`: READY & ONLINE! (${contacts.length} rows verified)`);
+      console.log(`✅ 2. Table \`public.students\`: READY & ONLINE! (${students.length} rows verified)`);
       passedChecks++;
     }
   } catch (err) {
-    console.log('❌ 2. Table `public.contacts` check failed:', err.message);
+    console.log('❌ 2. Table `public.students` check failed:', err.message);
   }
 
   // 3. Check campaign_history table
