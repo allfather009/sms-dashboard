@@ -168,8 +168,8 @@ export const StudentTable: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5">
-      {/* Top Search, Filter, and Action Controls - Sticky Container */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b pb-3 pt-2 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xs">
+      {/* Top Search, Filter, and Action Controls - Floating Sticky Panel */}
+      <div className="sticky top-4 z-20 bg-white/90 backdrop-blur-md rounded-xl p-4 border border-slate-200/80 shadow-sm space-y-3 transition-all">
         {/* Row 1 (Search & Filters): Live search bar alongside dropdown filters */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
@@ -196,7 +196,7 @@ export const StudentTable: React.FC = () => {
           {/* Quick Dropdown Filters (Department, Stage, Telecom Carrier) */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Department Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-black/[0.04]">
+            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
               <Building2 className="w-3.5 h-3.5 text-zinc-400" />
               <select
                 value={filters.department}
@@ -213,7 +213,7 @@ export const StudentTable: React.FC = () => {
             </div>
 
             {/* Stage Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-black/[0.04]">
+            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
               <Layers className="w-3.5 h-3.5 text-zinc-400" />
               <select
                 value={filters.stage}
@@ -230,7 +230,7 @@ export const StudentTable: React.FC = () => {
             </div>
 
             {/* Telecom Carrier Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-black/[0.04]">
+            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
               <Radio className="w-3.5 h-3.5 text-zinc-400" />
               <select
                 id="carrier-filter-select"
@@ -261,7 +261,7 @@ export const StudentTable: React.FC = () => {
         </div>
 
         {/* Row 2 (Controls & Actions): Left-aligned status indicators and right-aligned action buttons */}
-        <div className="flex items-center justify-between flex-wrap gap-2.5 pt-2 border-t border-black/[0.04]">
+        <div className="flex items-center justify-between flex-wrap gap-2.5 pt-2.5 border-t border-slate-100">
           {/* Left-aligned status indicators (Supabase Live, Sync) */}
           <div className="flex items-center gap-2">
             {/* Supabase Status Indicator */}
@@ -320,7 +320,7 @@ export const StudentTable: React.FC = () => {
 
         {/* Selection / Quick Broadcast Bar */}
         {selectedStudentIds.length > 0 && (
-          <div className="pt-3 border-t border-black/[0.04] flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
+          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-zinc-900">
                 {selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected

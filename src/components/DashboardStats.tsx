@@ -5,7 +5,7 @@ import { useSMS } from '@/context/SMSContext';
 import { Users, CheckSquare, Building2, Send, Zap } from 'lucide-react';
 
 export const DashboardStats: React.FC = () => {
-  const { contacts, selectedContacts, departments, stages, setIsComposerOpen } = useSMS();
+  const { contacts, selectedContacts, selectedCount, departments, stages, setIsComposerOpen } = useSMS();
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full max-w-7xl mx-auto">
@@ -35,7 +35,7 @@ export const DashboardStats: React.FC = () => {
             Selected for SMS
           </span>
           <div className="text-xl sm:text-2xl font-bold tracking-tight text-[#0071e3] mt-0.5">
-            {selectedContacts.length}
+            {selectedCount ?? selectedContacts.length}
           </div>
           <span className="text-[11px] text-zinc-500 flex items-center gap-1 mt-1">
             <CheckSquare className="w-3 h-3 text-[#0071e3]" />

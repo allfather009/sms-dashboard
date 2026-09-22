@@ -19,6 +19,7 @@ interface SMSContextType {
   // Student state
   students: Student[];
   selectedStudentIds: string[];
+  selectedCount: number;
   isLoadingStudents: boolean;
   isSupabaseLive: boolean;
 
@@ -126,12 +127,12 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoadingStudents, setIsLoadingStudents] = useState<boolean>(true);
   const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(false);
 
-  // Targeting options
-  const [targetingMode, setTargetingMode] = useState<TargetingMode>('department');
+  // Targeting options - strictly defaults to manual 'selected' mode with 0 recipients
+  const [targetingMode, setTargetingMode] = useState<TargetingMode>('selected');
   const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
-  const [targetStage, setTargetStage] = useState<string>('Stage 1');
-  const [targetCombinedDept, setTargetCombinedDept] = useState<string>('Information Technology');
-  const [targetCombinedStage, setTargetCombinedStage] = useState<string>('Stage 2');
+  const [targetStage, setTargetStage] = useState<string>('');
+  const [targetCombinedDept, setTargetCombinedDept] = useState<string>('');
+  const [targetCombinedStage, setTargetCombinedStage] = useState<string>('');
 
   // SMS Composer & Sending state
   const [isComposerOpen, setIsComposerOpen] = useState<boolean>(false);
@@ -154,9 +155,8 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: c.createdAt || new Date().toISOString(),
     }));
     setStudents((prev) => (append ? [...convertedStudents, ...prev] : convertedStudents));
-    setSelectedStudentIds((prev) =>
-      append ? [...convertedStudents.map((s) => s.id), ...prev] : convertedStudents.map((s) => s.id)
-    );
+    // Strictly default selection to 0; only increases when user manually checks a box
+    setSelectedStudentIds([]);
   }, []);
 
   // Toast Helper
@@ -196,14 +196,8 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setStudents(studentData);
         // Zero students selected by default on initial load
         setSelectedStudentIds([]);
-        if (studentData[0]?.department) {
-          setTargetDepartments([studentData[0].department]);
-          setTargetCombinedDept(studentData[0].department);
-        }
-        if (studentData[0]?.stage) {
-          setTargetStage(studentData[0].stage);
-          setTargetCombinedStage(studentData[0].stage);
-        }
+        setTargetDepartments([]);
+        setTargetingMode('selected');
         setIsLoadingStudents(false);
         return;
       }
@@ -356,10 +350,11 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return students.filter((s) => deptSet.has(s.department.toLowerCase()));
       }
       case 'stage': {
-        if (!targetStage || targetStage === 'All') return students;
+        if (!targetStage || targetStage === 'All') return [];
         return students.filter((s) => s.stage.toLowerCase() === targetStage.toLowerCase());
       }
       case 'combined': {
+        if (!targetCombinedDept || !targetCombinedStage) return [];
         return students.filter(
           (s) =>
             s.department.toLowerCase() === targetCombinedDept.toLowerCase() &&
@@ -607,7 +602,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Backwards compatibility mappings
   const contacts: Contact[] = useMemo(() => students.map(mapStudentToContact), [students]);
   const filteredContacts: Contact[] = useMemo(() => filteredStudents.map(mapStudentToContact), [filteredStudents]);
-  const selectedContacts: Contact[] = useMemo(() => resolvedRecipients.map(mapStudentToContact), [resolvedRecipients]);
+  const selectedContacts: Contact[] = useMemo(() => {
+    const idSet = new Set(selectedStudentIds);
+    return students.filter((s) => idSet.has(s.id)).map(mapStudentToContact);
+  }, [students, selectedStudentIds]);
 
   const loadSampleData = useCallback(() => {
     refreshStudents();
@@ -618,6 +616,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         students,
         selectedStudentIds,
+        selectedCount: selectedStudentIds.length,
         isLoadingStudents,
         isSupabaseLive,
         filters,

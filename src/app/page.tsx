@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
-  const { activeTab, setActiveTab, resolvedRecipients, setIsComposerOpen } = useSMS();
+  const { activeTab, setActiveTab, selectedStudentIds, setTargetingMode, setIsComposerOpen } = useSMS();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
@@ -60,14 +60,19 @@ function DashboardContent() {
             </button>
 
             <button
-              onClick={() => setIsComposerOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)]"
+              onClick={() => {
+                if (selectedStudentIds.length > 0) {
+                  setTargetingMode('selected');
+                }
+                setIsComposerOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)] cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Targeted Broadcast</span>
-              {resolvedRecipients.length > 0 && (
+              {selectedStudentIds.length > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-white/20 font-mono font-bold">
-                  {resolvedRecipients.length}
+                  {selectedStudentIds.length}
                 </span>
               )}
             </button>
@@ -86,20 +91,23 @@ function DashboardContent() {
       </main>
 
       {/* Floating Quick Compose Pill for mobile or when scrolled */}
-      {resolvedRecipients.length > 0 && (
+      {selectedStudentIds.length > 0 && (
         <aside 
           aria-label="Selection summary and actions"
           className="fixed bottom-6 right-6 z-40 hidden sm:flex items-center gap-3 p-1.5 pl-4 rounded-full bg-zinc-950/90 text-white backdrop-blur-xl shadow-2xl border border-white/10 animate-in slide-in-from-bottom-3"
         >
           <div className="flex items-center gap-2 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold">{resolvedRecipients.length}</span>
-            <span className="text-zinc-400">targeted</span>
+            <span className="font-semibold">{selectedStudentIds.length}</span>
+            <span className="text-zinc-400">selected</span>
           </div>
 
           <button
-            onClick={() => setIsComposerOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] active:scale-95 text-xs font-semibold transition-all shadow-sm"
+            onClick={() => {
+              setTargetingMode('selected');
+              setIsComposerOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] active:scale-95 text-xs font-semibold transition-all shadow-sm cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Compose</span>
