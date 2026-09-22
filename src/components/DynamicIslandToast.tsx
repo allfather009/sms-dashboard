@@ -12,7 +12,7 @@ export const DynamicIslandToast: React.FC = () => {
   const isTransmitting = toast.type === 'sending' || isSending;
 
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none transition-all duration-300 ease-out">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none transition-all duration-300 ease-out animate-toast-in">
       <div
         className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition-all duration-300 border border-white/15 ${
           isTransmitting
@@ -80,7 +80,7 @@ export const DynamicIslandToast: React.FC = () => {
         {!isTransmitting && (
           <button
             onClick={hideToast}
-            className="flex-shrink-0 text-zinc-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+            className="flex-shrink-0 text-zinc-400 hover:text-white transition-all duration-150 ease-in-out active:scale-[0.90] p-1 rounded-full hover:bg-white/10 cursor-pointer"
             aria-label="Dismiss notification"
           >
             <X className="w-3.5 h-3.5" />

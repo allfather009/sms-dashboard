@@ -36,11 +36,11 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
       {/* Backdrop */}
       <div
         onClick={() => !isDeleting && onClose()}
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-backdrop-in"
       />
 
       {/* Alert Card */}
-      <div className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-black/[0.08] overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-black/[0.08] overflow-hidden z-10 animate-modal-in">
         <div className="p-6">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200/60 flex-shrink-0">
@@ -55,7 +55,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                 <button
                   onClick={onClose}
                   disabled={isDeleting}
-                  className="p-1 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+                  className="p-1 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -77,7 +77,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               type="button"
               onClick={onClose}
               disabled={isDeleting}
-              className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 transition-all duration-200 ease-in-out cursor-pointer"
             >
               Cancel
             </button>
@@ -85,7 +85,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] hover:shadow-md disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all duration-200 ease-in-out cursor-pointer"
             >
               {isDeleting ? (
                 <>

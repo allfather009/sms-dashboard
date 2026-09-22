@@ -249,7 +249,7 @@ export const StudentTable: React.FC = () => {
             {(filters.searchQuery || filters.department !== 'All' || filters.stage !== 'All' || (filters.carrier && filters.carrier !== 'All')) && (
               <button
                 onClick={resetFilters}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.96] cursor-pointer"
                 title="Reset filters"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -265,7 +265,7 @@ export const StudentTable: React.FC = () => {
           <div className="flex items-center gap-2">
             {/* Supabase Status Indicator */}
             <div
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-200 ${
                 isSupabaseLive
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
                   : 'bg-zinc-100 text-zinc-600 border-zinc-200'
@@ -280,7 +280,7 @@ export const StudentTable: React.FC = () => {
             <button
               onClick={handleManualRefresh}
               disabled={isRefreshing || isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.95] disabled:opacity-50 cursor-pointer"
               title="Sync table from Supabase"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#0071e3]' : ''}`} />
@@ -294,7 +294,7 @@ export const StudentTable: React.FC = () => {
             <button
               onClick={handleExportSelected}
               disabled={isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
             >
               <Download className="w-3.5 h-3.5 text-zinc-600" />
@@ -309,7 +309,7 @@ export const StudentTable: React.FC = () => {
             {/* Primary Action: + Add Student */}
             <button
               onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Add Student</span>
@@ -327,7 +327,7 @@ export const StudentTable: React.FC = () => {
               <span className="text-zinc-400">•</span>
               <button
                 onClick={selectAllFiltered}
-                className="text-[#0071e3] hover:underline font-medium"
+                className="text-[#0071e3] hover:underline font-medium cursor-pointer"
               >
                 {isAllFilteredSelected ? 'Deselect all' : 'Select all filtered'}
               </button>
@@ -336,7 +336,7 @@ export const StudentTable: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExportSelected}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
                 title="Export selected students to CSV"
               >
                 <Download className="w-3 h-3 text-zinc-600" />
@@ -348,7 +348,7 @@ export const StudentTable: React.FC = () => {
                   setTargetingMode('selected');
                   setIsComposerOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
               >
                 <Send className="w-3 h-3" />
                 <span>Broadcast to {selectedStudentIds.length} Selected</span>
@@ -501,7 +501,7 @@ export const StudentTable: React.FC = () => {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.04] text-xs">
+              <tbody className="divide-y divide-black/[0.04] text-xs animate-table-in">
                 {filteredStudents.map((student) => {
                   const isSelected = selectedStudentIds.includes(student.id);
                   const initial = student.fullName.trim().charAt(0).toUpperCase() || '?';
@@ -511,8 +511,8 @@ export const StudentTable: React.FC = () => {
                     <tr
                       key={student.id}
                       onClick={() => toggleSelectStudent(student.id)}
-                      className={`cursor-pointer transition-colors group ${
-                        isSelected ? 'bg-blue-50/50 hover:bg-blue-50/80' : 'hover:bg-zinc-50/80'
+                      className={`cursor-pointer transition-colors duration-150 ease-in-out group ${
+                        isSelected ? 'bg-blue-50/60 hover:bg-blue-50/90' : 'hover:bg-slate-50'
                       }`}
                     >
                       {/* Checkbox */}
@@ -606,7 +606,7 @@ export const StudentTable: React.FC = () => {
                               setTargetingMode('selected');
                               setIsComposerOpen(true);
                             }}
-                            className="p-1.5 text-zinc-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-1.5 text-zinc-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
                             title="Compose SMS to this student"
                           >
                             <Send className="w-3.5 h-3.5" />
@@ -615,7 +615,7 @@ export const StudentTable: React.FC = () => {
                           {/* Edit Student */}
                           <button
                             onClick={(e) => handleOpenEditModal(student, e)}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg transition-colors"
+                            className="p-1.5 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
                             title="Edit student details"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
@@ -624,7 +624,7 @@ export const StudentTable: React.FC = () => {
                           {/* Delete Student */}
                           <button
                             onClick={(e) => handleOpenDeleteModal(student, e)}
-                            className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
                             title="Delete student"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

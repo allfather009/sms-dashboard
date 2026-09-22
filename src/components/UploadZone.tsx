@@ -265,7 +265,7 @@ export const UploadZone: React.FC = () => {
           </p>
           <button
             onClick={downloadSampleCSV}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white text-zinc-800 border border-zinc-200 hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white text-zinc-800 border border-zinc-200 hover:bg-zinc-50 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-sm cursor-pointer shadow-xs"
           >
             <Download className="w-3.5 h-3.5 text-zinc-500" />
             <span>Download Iraq Student Template (.CSV)</span>

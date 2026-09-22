@@ -121,11 +121,11 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
       {/* Frosted Backdrop */}
       <div 
         onClick={() => !isSubmitting && onClose()}
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-backdrop-in"
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-black/[0.08] overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-black/[0.08] overflow-hidden z-10 animate-modal-in">
         {/* Header */}
         <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-zinc-50/60">
           <div className="flex items-center gap-2.5">
@@ -146,7 +146,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+            className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -282,14 +282,14 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 transition-all duration-200 ease-in-out cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !phoneValidation.isValid || !studentId.trim() || !fullName.trim()}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] disabled:opacity-50 disabled:pointer-events-none text-xs font-semibold shadow-sm transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] hover:shadow-md disabled:opacity-50 disabled:pointer-events-none text-xs font-semibold shadow-sm transition-all duration-200 ease-in-out cursor-pointer"
             >
               {isSubmitting ? (
                 <>

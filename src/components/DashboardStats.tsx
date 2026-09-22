@@ -69,7 +69,7 @@ export const DashboardStats: React.FC = () => {
       {/* Quick Launch Card */}
       <div 
         onClick={() => setIsComposerOpen(true)}
-        className="apple-glass-card rounded-2xl p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-blue-300/80 hover:bg-blue-50/30 transition-all group"
+        className="apple-glass-card rounded-2xl p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-blue-300/80 hover:bg-blue-50/30 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] group"
       >
         <div>
           <span className="text-[11px] uppercase tracking-wider font-semibold text-[#0071e3]">
@@ -83,7 +83,7 @@ export const DashboardStats: React.FC = () => {
             <span>Direct Gateway Dispatch</span>
           </span>
         </div>
-        <div className="w-10 h-10 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center group-hover:scale-105 transition-transform shadow-[0_2px_10px_rgba(0,113,227,0.3)]">
+        <div className="w-10 h-10 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-200 shadow-[0_2px_10px_rgba(0,113,227,0.3)]">
           <Send className="w-4 h-4" />
         </div>
       </div>

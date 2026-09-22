@@ -131,11 +131,11 @@ export const SMSComposer: React.FC = () => {
       {/* Backdrop */}
       <div
         onClick={() => !isSending && setIsComposerOpen(false)}
-        className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity animate-backdrop-in"
       />
 
       {/* Slide-out Sheet Panel */}
-      <aside className="relative w-full max-w-xl apple-glass-panel h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300">
+      <aside className="relative w-full max-w-xl apple-glass-panel h-full flex flex-col z-10 shadow-2xl animate-drawer-in">
         {/* Sheet Header */}
         <div className="p-5 border-b border-black/[0.06] flex items-center justify-between bg-white/70">
           <div>
@@ -155,7 +155,7 @@ export const SMSComposer: React.FC = () => {
           <button
             onClick={() => !isSending && setIsComposerOpen(false)}
             disabled={isSending}
-            className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
             aria-label="Close composer"
           >
             <X className="w-5 h-5" />
@@ -184,7 +184,7 @@ export const SMSComposer: React.FC = () => {
                     key={id}
                     type="button"
                     onClick={() => setTargetingMode(id as TargetingMode)}
-                    className={`py-1.5 px-2 text-xs font-medium rounded-xl transition-all text-center ${
+                    className={`py-1.5 px-2 text-xs font-medium rounded-xl transition-all duration-150 ease-in-out active:scale-[0.97] cursor-pointer text-center ${
                       isActive
                         ? 'bg-white text-zinc-900 shadow-xs font-semibold'
                         : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/50'
@@ -394,7 +394,7 @@ export const SMSComposer: React.FC = () => {
                   type="button"
                   title={`Insert ${label}`}
                   onClick={() => insertTag(tag)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded-lg bg-zinc-100 hover:bg-blue-50 hover:text-[#0071e3] hover:border-blue-200 text-zinc-700 border border-zinc-200/80 transition-all active:scale-[0.97]"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded-lg bg-zinc-100 hover:bg-blue-50 hover:text-[#0071e3] hover:border-blue-200 text-zinc-700 border border-zinc-200/80 transition-all duration-150 ease-in-out hover:shadow-xs active:scale-[0.95] cursor-pointer"
                 >
                   <span className="text-[#0071e3] font-bold">+</span>
                   <span>{tag}</span>
@@ -593,7 +593,7 @@ export const SMSComposer: React.FC = () => {
             <button
               onClick={() => setIsComposerOpen(false)}
               disabled={isSending}
-              className="px-4 py-2.5 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 transition-all duration-200 ease-in-out cursor-pointer"
             >
               Cancel
             </button>
@@ -601,7 +601,7 @@ export const SMSComposer: React.FC = () => {
             <button
               onClick={triggerSendSMS}
               disabled={isSending || resolvedRecipients.length === 0 || !composerMessage.trim()}
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none text-white text-xs sm:text-sm font-semibold transition-all shadow-[0_4px_14px_rgba(0,113,227,0.35)]"
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] hover:shadow-lg disabled:opacity-50 disabled:pointer-events-none text-white text-xs sm:text-sm font-semibold transition-all duration-200 ease-in-out shadow-[0_4px_14px_rgba(0,113,227,0.35)] cursor-pointer"
             >
               {isSending ? (
                 <>

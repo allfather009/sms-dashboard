@@ -53,7 +53,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
         <nav className="hidden md:flex items-center bg-zinc-200/60 p-1 rounded-xl border border-black/[0.04]">
           <button
             onClick={() => setActiveTab('students')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
               activeTab === 'students' || (activeTab as string) === 'contacts'
                 ? 'bg-white text-zinc-900 shadow-sm font-semibold'
                 : 'text-zinc-600 hover:text-zinc-900'
@@ -68,9 +68,9 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
 
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
               activeTab === 'upload'
-                ? 'bg-white text-zinc-900 shadow-sm'
+                ? 'bg-white text-zinc-900 shadow-sm font-semibold'
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
@@ -80,9 +80,9 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
 
           <button
             onClick={() => setActiveTab('campaigns')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
               activeTab === 'campaigns'
-                ? 'bg-white text-zinc-900 shadow-sm'
+                ? 'bg-white text-zinc-900 shadow-sm font-semibold'
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
@@ -97,7 +97,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
           {contacts.length === 0 && (
             <button
               onClick={loadSampleData}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-all duration-200 ease-in-out active:scale-[0.96] cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Load Sample Data</span>
@@ -107,7 +107,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
           {/* Provider API modal trigger */}
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-50 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.96] shadow-xs cursor-pointer"
             title="View API integration docs & configuration"
           >
             <Code2 className="w-3.5 h-3.5 text-zinc-500" />
@@ -117,7 +117,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
           {/* Primary Compose SMS Button */}
           <button
             onClick={() => setIsComposerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)]"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_10px_rgba(0,113,227,0.3)] cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Compose SMS</span>

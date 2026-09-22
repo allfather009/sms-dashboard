@@ -49,7 +49,7 @@ function DashboardContent() {
           <div className="flex items-center gap-2.5 self-start md:self-auto">
             <button
               onClick={() => setActiveTab(activeTab === 'upload' ? 'students' : 'upload')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all shadow-xs ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] cursor-pointer ${
                 activeTab === 'upload'
                   ? 'bg-zinc-900 text-white'
                   : 'bg-white text-zinc-700 border border-zinc-200/80 hover:bg-zinc-50'
@@ -66,7 +66,7 @@ function DashboardContent() {
                 }
                 setIsComposerOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)] cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_10px_rgba(0,113,227,0.3)] cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Targeted Broadcast</span>
@@ -107,7 +107,7 @@ function DashboardContent() {
               setTargetingMode('selected');
               setIsComposerOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] active:scale-95 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.95] hover:shadow-md text-xs font-semibold transition-all duration-200 ease-in-out shadow-sm cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Compose</span>

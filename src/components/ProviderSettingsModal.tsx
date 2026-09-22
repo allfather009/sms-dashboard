@@ -71,11 +71,11 @@ CREATE POLICY "Allow public delete access to students"
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-backdrop-in"
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-2xl apple-glass-card rounded-3xl p-6 sm:p-8 bg-white/95 z-10 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl apple-glass-card rounded-3xl p-6 sm:p-8 bg-white/95 z-10 shadow-2xl space-y-6 animate-modal-in">
         {/* Header */}
         <div className="flex items-start justify-between pb-3 border-b border-black/[0.06]">
           <div className="flex items-center gap-3">
@@ -94,7 +94,7 @@ CREATE POLICY "Allow public delete access to students"
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -104,7 +104,7 @@ CREATE POLICY "Allow public delete access to students"
         <div className="flex items-center gap-2 p-1 bg-zinc-100 rounded-xl">
           <button
             onClick={() => setActiveTab('supabase')}
-            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ease-in-out active:scale-[0.98] cursor-pointer ${
               activeTab === 'supabase'
                 ? 'bg-white text-zinc-900 shadow-xs'
                 : 'text-zinc-500 hover:text-zinc-900'
@@ -116,7 +116,7 @@ CREATE POLICY "Allow public delete access to students"
 
           <button
             onClick={() => setActiveTab('sms')}
-            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ease-in-out active:scale-[0.98] cursor-pointer ${
               activeTab === 'sms'
                 ? 'bg-white text-zinc-900 shadow-xs'
                 : 'text-zinc-500 hover:text-zinc-900'
@@ -157,7 +157,7 @@ CREATE POLICY "Allow public delete access to students"
                 </pre>
                 <button
                   onClick={() => handleCopy(sqlSnippet, 'sql')}
-                  className="absolute right-2.5 top-2.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors"
+                  className="absolute right-2.5 top-2.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium flex items-center gap-1.5 transition-all duration-150 ease-in-out active:scale-[0.95] cursor-pointer"
                 >
                   {copiedKey === 'sql' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedKey === 'sql' ? 'Copied' : 'Copy SQL'}</span>
@@ -176,7 +176,7 @@ CREATE POLICY "Allow public delete access to students"
                 </pre>
                 <button
                   onClick={() => handleCopy(sampleEnv, 'env')}
-                  className="absolute right-2.5 top-2.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors"
+                  className="absolute right-2.5 top-2.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium flex items-center gap-1.5 transition-all duration-150 ease-in-out active:scale-[0.95] cursor-pointer"
                 >
                   {copiedKey === 'env' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedKey === 'env' ? 'Copied' : 'Copy .env'}</span>
@@ -208,7 +208,7 @@ CREATE POLICY "Allow public delete access to students"
         <div className="pt-2 flex items-center justify-end gap-3 border-t border-black/[0.04]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98] transition-all duration-200 ease-in-out shadow-xs cursor-pointer"
           >
             Done
           </button>
