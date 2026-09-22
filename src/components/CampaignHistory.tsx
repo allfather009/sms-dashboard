@@ -62,76 +62,84 @@ export const CampaignHistory: React.FC = () => {
       ) : (
         /* List of Past Campaigns */
         <div className="space-y-4">
-          {campaignHistory.map((batch) => (
-            <div
-              key={batch.batchId}
-              className="apple-glass-card rounded-2xl p-5 border border-black/[0.06] hover:border-black/[0.1] transition-all space-y-4"
-            >
-              {/* Batch Top Header */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-black/[0.04]">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-5 h-5" />
+          {campaignHistory.map((batch, batchIdx) => {
+            const batchKey = batch.batchId || `batch-${batchIdx}`;
+            return (
+              <div
+                key={batchKey}
+                className="apple-glass-card rounded-2xl p-5 border border-black/[0.06] hover:border-black/[0.1] transition-all space-y-4"
+              >
+                {/* Batch Top Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-black/[0.04]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-zinc-900 text-sm">
+                          Batch {batch.batchId}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          100% Delivered
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        <span>{new Date(batch.sentAt).toLocaleString()}</span>
+                        <span>•</span>
+                        <span>Latency: {batch.providerDetails.latencyMs}ms</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-zinc-900 text-sm">
-                        Batch {batch.batchId}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        100% Delivered
+
+                  {/* Metrics Badges */}
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
+                      <Users className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>
+                        <strong className="text-zinc-900">{batch.recipientCount}</strong> recipients
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-0.5">
-                      <Clock className="w-3 h-3" />
-                      <span>{new Date(batch.sentAt).toLocaleString()}</span>
-                      <span>•</span>
-                      <span>Latency: {batch.providerDetails.latencyMs}ms</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
+                      <Layers className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>
+                        <strong className="text-zinc-900">{batch.totalSegments}</strong> segments
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Metrics Badges */}
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
-                    <Users className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>
-                      <strong className="text-zinc-900">{batch.recipientCount}</strong> recipients
+                {/* Message Content Preview */}
+                <div className="p-3.5 rounded-xl bg-zinc-50/80 border border-zinc-200/60 text-xs text-zinc-700 font-mono leading-relaxed whitespace-pre-wrap">
+                  {batch.messagePreview}
+                </div>
+
+                {/* Recipient sample pills */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                  <span className="text-[11px] font-medium mr-1">Recipients:</span>
+                  {batch.recipients.slice(0, 6).map((r, rIdx) => {
+                    const recipientKey = r.id || `${batchKey}-recip-${rIdx}-${r.phoneNumber || ''}`;
+                    const displayName = r.name || r.phoneNumber || `Recipient ${rIdx + 1}`;
+                    const deptInfo = r.department ? ` (${r.department})` : '';
+                    return (
+                      <span
+                        key={recipientKey}
+                        className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-white text-zinc-700 border border-black/[0.04]"
+                      >
+                        {displayName}{deptInfo}
+                      </span>
+                    );
+                  })}
+                  {batch.recipients.length > 6 && (
+                    <span className="text-[11px] text-zinc-400 font-medium">
+                      +{batch.recipients.length - 6} more
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
-                    <Layers className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>
-                      <strong className="text-zinc-900">{batch.totalSegments}</strong> segments
-                    </span>
-                  </div>
+                  )}
                 </div>
               </div>
-
-              {/* Message Content Preview */}
-              <div className="p-3.5 rounded-xl bg-zinc-50/80 border border-zinc-200/60 text-xs text-zinc-700 font-mono leading-relaxed whitespace-pre-wrap">
-                {batch.messagePreview}
-              </div>
-
-              {/* Recipient sample pills */}
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-                <span className="text-[11px] font-medium mr-1">Recipients:</span>
-                {batch.recipients.slice(0, 6).map((r) => (
-                  <span
-                    key={r.id}
-                    className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-white text-zinc-700 border border-black/[0.04]"
-                  >
-                    {r.name} ({r.department})
-                  </span>
-                ))}
-                {batch.recipients.length > 6 && (
-                  <span className="text-[11px] text-zinc-400 font-medium">
-                    +{batch.recipients.length - 6} more
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

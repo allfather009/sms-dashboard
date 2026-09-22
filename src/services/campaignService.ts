@@ -12,11 +12,15 @@ export interface DatabaseCampaignRow {
   message_preview: string;
   sent_at: string;
   recipients: Array<{
-    id: string;
-    name: string;
-    phoneNumber: string;
-    department: string;
-    stage: string;
+    id?: string;
+    name?: string;
+    phoneNumber?: string;
+    originalPhone?: string;
+    department?: string;
+    stage?: string;
+    studentId?: string;
+    success?: boolean;
+    error?: string;
   }>;
   provider_details: {
     providerName: string;
@@ -28,8 +32,9 @@ export interface DatabaseCampaignRow {
 }
 
 export function mapRowToCampaign(row: DatabaseCampaignRow): SMSBatchResult {
+  const batchId = row.batch_id || row.id || `batch-${Date.now()}`;
   return {
-    batchId: row.batch_id,
+    batchId,
     status: row.status,
     recipientCount: row.recipient_count,
     totalSegments: row.total_segments,
@@ -37,7 +42,13 @@ export function mapRowToCampaign(row: DatabaseCampaignRow): SMSBatchResult {
     failedCount: row.failed_count,
     messagePreview: row.message_preview,
     sentAt: row.sent_at,
-    recipients: row.recipients || [],
+    recipients: (row.recipients || []).map((r, idx) => ({
+      id: r.id || `${batchId}-r-${idx}-${r.phoneNumber || r.originalPhone || ''}`,
+      name: r.name || r.phoneNumber || r.originalPhone || `Recipient ${idx + 1}`,
+      phoneNumber: r.phoneNumber || r.originalPhone || '',
+      department: r.department || '',
+      stage: r.stage || '',
+    })),
     providerDetails: row.provider_details || {
       providerName: 'TIUS Direct Gateway',
       latencyMs: 2000,

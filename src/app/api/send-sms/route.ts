@@ -94,6 +94,11 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     const results: Array<{
+      id?: string;
+      name?: string;
+      department?: string;
+      stage?: string;
+      studentId?: string;
       recipient: string;
       originalPhone: string;
       success: boolean;
@@ -110,10 +115,20 @@ export async function POST(request: NextRequest) {
       const rawPhone = typeof item === 'string' ? item : item.phoneNumber || item.phone || '';
       const formattedNumber = formatIraqNumber(rawPhone);
       const personalizedMessage = personalize(message, item);
+      const id = typeof item === 'object' ? item.id : undefined;
+      const name = typeof item === 'object' ? item.name : undefined;
+      const department = typeof item === 'object' ? item.department : undefined;
+      const stage = typeof item === 'object' ? item.stage : undefined;
+      const studentId = typeof item === 'object' ? item.studentId : undefined;
 
       if (!formattedNumber) {
         failedCount++;
         results.push({
+          id,
+          name,
+          department,
+          stage,
+          studentId,
           recipient: '',
           originalPhone: rawPhone,
           success: false,
@@ -128,6 +143,11 @@ export async function POST(request: NextRequest) {
         await new Promise((r) => setTimeout(r, 150));
         deliveredCount++;
         results.push({
+          id,
+          name,
+          department,
+          stage,
+          studentId,
           recipient: formattedNumber,
           originalPhone: rawPhone,
           success: true,
@@ -161,6 +181,11 @@ export async function POST(request: NextRequest) {
         if (providerResponse.ok) {
           deliveredCount++;
           results.push({
+            id,
+            name,
+            department,
+            stage,
+            studentId,
             recipient: formattedNumber,
             originalPhone: rawPhone,
             success: true,
@@ -170,6 +195,11 @@ export async function POST(request: NextRequest) {
         } else {
           failedCount++;
           results.push({
+            id,
+            name,
+            department,
+            stage,
+            studentId,
             recipient: formattedNumber,
             originalPhone: rawPhone,
             success: false,
@@ -181,6 +211,11 @@ export async function POST(request: NextRequest) {
         failedCount++;
         const errMsg = err instanceof Error ? err.message : String(err);
         results.push({
+          id,
+          name,
+          department,
+          stage,
+          studentId,
           recipient: formattedNumber,
           originalPhone: rawPhone,
           success: false,
@@ -204,6 +239,11 @@ export async function POST(request: NextRequest) {
         message_preview: message.length > 90 ? `${message.substring(0, 87)}...` : message,
         sent_at: new Date().toISOString(),
         recipients: results.map((r) => ({
+          id: r.id,
+          name: r.name,
+          department: r.department,
+          stage: r.stage,
+          studentId: r.studentId,
           phoneNumber: r.recipient,
           originalPhone: r.originalPhone,
           success: r.success,
