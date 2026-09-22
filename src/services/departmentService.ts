@@ -23,7 +23,7 @@ export const DEFAULT_TIU_DEPARTMENTS: string[] = [
   'Information Technology (IT)',
   'Interior Design Engineering',
   'International Relations and Diplomacy',
-  'Medical Analysis',
+  'MLS',
   'Nursing',
   'Pharmacy',
   'Physiotherapy',
