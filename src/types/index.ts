@@ -32,6 +32,7 @@ export interface FilterState {
   searchQuery: string;
   department: string;
   stage: string;
+  carrier: string;
 }
 
 export interface SMSTemplate {

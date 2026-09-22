@@ -24,7 +24,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
   } = useSMS();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-black/[0.06] bg-white/75 backdrop-blur-xl transition-all">
+    <header className="relative w-full border-b border-black/[0.06] bg-white/75 backdrop-blur-xl transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand & System Status */}
         <div className="flex items-center gap-4">

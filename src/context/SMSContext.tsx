@@ -114,6 +114,7 @@ const DEFAULT_FILTERS: FilterState = {
   searchQuery: '',
   department: 'All',
   stage: 'All',
+  carrier: 'All',
 };
 
 const DEFAULT_MESSAGE = "Dear {Name} (ID: {StudentID}), please note that your {Department} lectures for {Stage} will proceed as scheduled. Contact department administration for inquiries.";
@@ -193,8 +194,8 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (!studentError && studentData && studentData.length > 0) {
         setStudents(studentData);
-        // Pre-select first 3
-        setSelectedStudentIds(studentData.slice(0, 3).map((s) => s.id));
+        // Zero students selected by default on initial load
+        setSelectedStudentIds([]);
         if (studentData[0]?.department) {
           setTargetDepartments([studentData[0].department]);
           setTargetCombinedDept(studentData[0].department);
@@ -243,7 +244,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return [...VALID_STAGES];
   }, []);
 
-  // Filtered students by search query (Full Name, Student ID, Phone Number), Department, and Stage
+  // Filtered students by search query (Full Name, Student ID, Phone Number), Department, Stage, and Telecom Carrier
   const filteredStudents = useMemo(() => {
     const query = filters.searchQuery.trim().toLowerCase();
     return students.filter((s) => {
@@ -261,7 +262,34 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         filters.stage === 'All' ||
         s.stage.toLowerCase() === filters.stage.toLowerCase();
 
-      return matchesSearch && matchesDept && matchesStage;
+      // Iraqi telecom prefixes:
+      // Asiacell: 96477
+      // Zain Iraq: 96478 or 96479
+      // Korek: 96475
+      const rawDigits = s.phoneNumber.replace(/[^0-9]/g, '');
+      const standardPhone = rawDigits.startsWith('00964')
+        ? rawDigits.substring(2)
+        : rawDigits.startsWith('07')
+        ? '964' + rawDigits.substring(1)
+        : rawDigits.startsWith('7') && rawDigits.length === 10
+        ? '964' + rawDigits
+        : rawDigits;
+
+      const matchesCarrier = (() => {
+        if (!filters.carrier || filters.carrier === 'All') return true;
+        if (filters.carrier === 'Asiacell') {
+          return standardPhone.startsWith('96477');
+        }
+        if (filters.carrier === 'Zain Iraq' || filters.carrier === 'Zain') {
+          return standardPhone.startsWith('96478') || standardPhone.startsWith('96479');
+        }
+        if (filters.carrier === 'Korek' || filters.carrier === 'Korek Telecom') {
+          return standardPhone.startsWith('96475');
+        }
+        return true;
+      })();
+
+      return matchesSearch && matchesDept && matchesStage && matchesCarrier;
     });
   }, [students, filters]);
 

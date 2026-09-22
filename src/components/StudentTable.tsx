@@ -6,6 +6,7 @@ import { Student } from '@/types';
 import { AddEditStudentModal } from './AddEditStudentModal';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
+import Papa from 'papaparse';
 import { 
   Search, 
   X, 
@@ -21,7 +22,9 @@ import {
   RefreshCw, 
   Database, 
   Loader2,
-  Users
+  Users,
+  Download,
+  Radio
 } from 'lucide-react';
 
 export const StudentTable: React.FC = () => {
@@ -46,6 +49,7 @@ export const StudentTable: React.FC = () => {
     refreshStudents,
     setIsComposerOpen,
     setTargetingMode,
+    showToast,
   } = useSMS();
 
   // Modals state
@@ -115,10 +119,57 @@ export const StudentTable: React.FC = () => {
     return 'text-zinc-600 bg-zinc-100 border-zinc-200/60';
   };
 
+  // Export to Excel (CSV)
+  const handleExportSelected = () => {
+    // If rows are checked, export only the checked rows.
+    // If no rows are checked, default to exporting the currently filtered list in the data table.
+    const targetStudents = selectedStudentIds.length > 0
+      ? students.filter((s) => selectedStudentIds.includes(s.id))
+      : filteredStudents;
+
+    if (targetStudents.length === 0) {
+      showToast({
+        type: 'warning',
+        title: 'No Data to Export',
+        message: 'There are no students to export matching the current selection or filters.',
+      });
+      return;
+    }
+
+    const exportRows = targetStudents.map((s) => ({
+      'Student ID': s.studentId,
+      'Full Name': s.fullName,
+      'Department': s.department,
+      'Stage': s.stage,
+      'Phone Number': s.phoneNumber,
+    }));
+
+    const csvContent = Papa.unparse(exportRows);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = selectedStudentIds.length > 0
+      ? `students_selected_${selectedStudentIds.length}_${dateStr}.csv`
+      : `students_export_${targetStudents.length}_${dateStr}.csv`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast({
+      type: 'success',
+      title: 'CSV Export Generated',
+      message: `Exported ${targetStudents.length} student${targetStudents.length !== 1 ? 's' : ''} to ${filename}.`,
+    });
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5">
-      {/* Top Search, Filter, and Action Controls */}
-      <div className="apple-glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+      {/* Top Search, Filter, and Action Controls - Sticky Container */}
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-md pb-4 pt-2 border-b border-black/[0.06] rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
           <div className="relative flex-1 max-w-lg">
@@ -141,7 +192,7 @@ export const StudentTable: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Dropdown Filters (Department and Stage) */}
+          {/* Quick Dropdown Filters (Department, Stage, Telecom Carrier) */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Department Dropdown Filter */}
             <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-black/[0.04]">
@@ -177,8 +228,25 @@ export const StudentTable: React.FC = () => {
               </select>
             </div>
 
+            {/* Telecom Carrier Dropdown Filter */}
+            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-black/[0.04]">
+              <Radio className="w-3.5 h-3.5 text-zinc-400" />
+              <select
+                id="carrier-filter-select"
+                aria-label="Filter by Telecom Carrier"
+                value={filters.carrier || 'All'}
+                onChange={(e) => setFilters({ carrier: e.target.value })}
+                className="text-xs bg-transparent text-zinc-800 font-medium focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="All">All Carriers</option>
+                <option value="Asiacell">Asiacell</option>
+                <option value="Zain Iraq">Zain Iraq</option>
+                <option value="Korek">Korek</option>
+              </select>
+            </div>
+
             {/* Reset Filters */}
-            {(filters.searchQuery || filters.department !== 'All' || filters.stage !== 'All') && (
+            {(filters.searchQuery || filters.department !== 'All' || filters.stage !== 'All' || (filters.carrier && filters.carrier !== 'All')) && (
               <button
                 onClick={resetFilters}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all"
@@ -213,6 +281,22 @@ export const StudentTable: React.FC = () => {
               <span className="hidden sm:inline">Sync</span>
             </button>
 
+            {/* Export Selected Button */}
+            <button
+              onClick={handleExportSelected}
+              disabled={isLoadingStudents}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/70 rounded-xl transition-all disabled:opacity-50"
+              title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
+            >
+              <Download className="w-3.5 h-3.5 text-zinc-600" />
+              <span>Export Selected</span>
+              {selectedStudentIds.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
+                  {selectedStudentIds.length}
+                </span>
+              )}
+            </button>
+
             {/* Primary Action: Add Student */}
             <button
               onClick={handleOpenAddModal}
@@ -240,16 +324,27 @@ export const StudentTable: React.FC = () => {
               </button>
             </div>
 
-            <button
-              onClick={() => {
-                setTargetingMode('selected');
-                setIsComposerOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-xs"
-            >
-              <Send className="w-3 h-3" />
-              <span>Broadcast to {selectedStudentIds.length} Selected</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportSelected}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all shadow-xs"
+                title="Export selected students to CSV"
+              >
+                <Download className="w-3 h-3 text-zinc-600" />
+                <span>Export ({selectedStudentIds.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setTargetingMode('selected');
+                  setIsComposerOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-xs"
+              >
+                <Send className="w-3 h-3" />
+                <span>Broadcast to {selectedStudentIds.length} Selected</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
