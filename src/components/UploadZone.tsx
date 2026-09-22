@@ -12,8 +12,10 @@ import {
   AlertCircle, 
   FileText, 
   RefreshCw,
-  GraduationCap
+  GraduationCap,
+  Layers
 } from 'lucide-react';
+import { VALID_STAGES, ValidStage } from '@/utils/fileParser';
 
 export const UploadZone: React.FC = () => {
   const { addContacts, refreshStudents, students, setActiveTab, showToast } = useSMS();
@@ -27,6 +29,7 @@ export const UploadZone: React.FC = () => {
     persistedToSupabase: boolean;
   } | null>(null);
   const [appendMode, setAppendMode] = useState(true);
+  const [stageMappingOption, setStageMappingOption] = useState<string>('auto');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +38,11 @@ export const UploadZone: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const result = await parseContactFile(file);
+      const parseOptions = stageMappingOption === 'auto'
+        ? { defaultStage: 'Stage 1' as ValidStage }
+        : { defaultStage: stageMappingOption as ValidStage, overrideStage: stageMappingOption as ValidStage };
+
+      const result = await parseContactFile(file, parseOptions);
 
       if (result.students.length === 0) {
         throw new Error('No valid students found. Ensure the file includes Student ID, Name, and Iraqi Phone Numbers.');
@@ -184,15 +191,36 @@ export const UploadZone: React.FC = () => {
           </div>
 
           {/* Import options & controls */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600 bg-zinc-100/80 hover:bg-zinc-200/80 px-3 py-1.5 rounded-xl transition-colors">
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs w-full max-w-xl">
+            {/* Academic Stage Mapping Dropdown */}
+            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200/90 px-3 py-2 rounded-xl text-zinc-700 shadow-xs">
+              <Layers className="w-3.5 h-3.5 text-[#0071e3] flex-shrink-0" />
+              <label htmlFor="csv-stage-select" className="font-medium whitespace-nowrap text-zinc-700">
+                Stage Mapping:
+              </label>
+              <select
+                id="csv-stage-select"
+                value={stageMappingOption}
+                onChange={(e) => setStageMappingOption(e.target.value)}
+                className="bg-white border border-zinc-200 rounded-lg px-2.5 py-1 text-zinc-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer text-xs"
+              >
+                <option value="auto">Auto-detect (Strict Stage 1–5)</option>
+                {VALID_STAGES.map((stg) => (
+                  <option key={stg} value={stg}>
+                    Assign all to {stg}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600 bg-zinc-100/80 hover:bg-zinc-200/80 px-3 py-2 rounded-xl transition-colors">
               <input
                 type="checkbox"
                 checked={appendMode}
                 onChange={(e) => setAppendMode(e.target.checked)}
                 className="rounded text-[#0071e3] focus:ring-[#0071e3] w-3.5 h-3.5"
               />
-              <span>Append to existing directory ({students.length} currently loaded)</span>
+              <span>Append ({students.length} loaded)</span>
             </label>
           </div>
 

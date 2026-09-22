@@ -3,6 +3,36 @@ import * as XLSX from 'xlsx';
 import { Contact, Student } from '@/types';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
+export const VALID_STAGES = ['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5'] as const;
+export type ValidStage = (typeof VALID_STAGES)[number];
+
+/**
+ * Strictly normalizes and sanitizes any input into one of the valid stages:
+ * 'Stage 1' | 'Stage 2' | 'Stage 3' | 'Stage 4' | 'Stage 5'
+ */
+export function normalizeStage(input: unknown, defaultStage: ValidStage = 'Stage 1'): ValidStage {
+  if (!input) return defaultStage;
+  let s = String(input).trim();
+  // Fix typos like 'satge', 'Stage Satge', etc.
+  s = s.replace(/satge/gi, 'Stage');
+  // Match any digits 1-5 anywhere in the string
+  const numMatch = s.match(/[1-5]/);
+  if (numMatch) {
+    const stageStr = `Stage ${numMatch[0]}`;
+    if (VALID_STAGES.includes(stageStr as ValidStage)) {
+      return stageStr as ValidStage;
+    }
+  }
+  // Check Roman numerals I - V
+  if (/\b(V|5)\b/i.test(s)) return 'Stage 5';
+  if (/\b(IV|4)\b/i.test(s)) return 'Stage 4';
+  if (/\b(III|3)\b/i.test(s)) return 'Stage 3';
+  if (/\b(II|2)\b/i.test(s)) return 'Stage 2';
+  if (/\b(I|1)\b/i.test(s)) return 'Stage 1';
+
+  return defaultStage;
+}
+
 export interface ParseResult {
   contacts: Contact[];
   students: Student[];
@@ -60,6 +90,7 @@ function normalizeHeader(header: string): 'studentId' | 'name' | 'phoneNumber' |
 
   if (
     clean.includes('stage') ||
+    clean.includes('satge') ||
     clean.includes('year') ||
     clean.includes('grade') ||
     clean.includes('level') ||
@@ -74,7 +105,10 @@ function normalizeHeader(header: string): 'studentId' | 'name' | 'phoneNumber' |
 /**
  * Parses raw row objects into normalized Student and Contact items
  */
-function processRows(rows: Record<string, unknown>[]): {
+function processRows(
+  rows: Record<string, unknown>[],
+  options?: { defaultStage?: ValidStage; overrideStage?: ValidStage }
+): {
   contacts: Contact[];
   students: Student[];
   errors: string[];
@@ -98,13 +132,16 @@ function processRows(rows: Record<string, unknown>[]): {
     }
   });
 
+  const fallbackStage: ValidStage = options?.defaultStage || 'Stage 1';
+  const overrideStage: ValidStage | undefined = options?.overrideStage;
+
   rows.forEach((row, index) => {
     const rowNum = index + 2;
     let studentId = '';
     let name = '';
     let phoneNumber = '';
     let department = 'Information Technology (IT)';
-    let stage = 'Stage 1';
+    let stage: string = fallbackStage;
 
     Object.entries(row).forEach(([key, val]) => {
       const field = mapping[key];
@@ -115,7 +152,7 @@ function processRows(rows: Record<string, unknown>[]): {
       else if (field === 'name') name = strVal;
       else if (field === 'phoneNumber') phoneNumber = strVal;
       else if (field === 'department') department = strVal;
-      else if (field === 'stage') stage = strVal;
+      else if (field === 'stage') stage = normalizeStage(strVal, fallbackStage);
     });
 
     if (!name && !phoneNumber) {
@@ -132,7 +169,7 @@ function processRows(rows: Record<string, unknown>[]): {
 
     const generatedId = `STU-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
     const effectiveStudentId = studentId || `U2024-${1000 + index}`;
-    const effectiveStage = stage.toLowerCase().startsWith('stage') ? stage : `Stage ${stage}`;
+    const effectiveStage = overrideStage || normalizeStage(stage, fallbackStage);
 
     const studentItem: Student = {
       id: generatedId,
@@ -160,9 +197,12 @@ function processRows(rows: Record<string, unknown>[]): {
 }
 
 /**
- * Parses a File object (CSV, XLSX, XLS) in the browser
+ * Parses a File object (CSV, XLSX, XLS) in the browser with strict stage normalization
  */
-export async function parseContactFile(file: File): Promise<ParseResult> {
+export async function parseContactFile(
+  file: File,
+  options?: { defaultStage?: ValidStage; overrideStage?: ValidStage }
+): Promise<ParseResult> {
   const fileName = file.name.toLowerCase();
 
   if (fileName.endsWith('.csv')) {
@@ -171,7 +211,10 @@ export async function parseContactFile(file: File): Promise<ParseResult> {
         header: true,
         skipEmptyLines: 'greedy',
         complete: (results) => {
-          const { contacts, students, errors, columnsFound } = processRows(results.data as Record<string, unknown>[]);
+          const { contacts, students, errors, columnsFound } = processRows(
+            results.data as Record<string, unknown>[],
+            options
+          );
           resolve({
             contacts,
             students,
@@ -207,7 +250,7 @@ export async function parseContactFile(file: File): Promise<ParseResult> {
             blankrows: false,
           });
 
-          const { contacts, students, errors, columnsFound } = processRows(rawRows);
+          const { contacts, students, errors, columnsFound } = processRows(rawRows, options);
 
           resolve({
             contacts,

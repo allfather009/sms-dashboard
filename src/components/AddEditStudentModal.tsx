@@ -16,6 +16,8 @@ import {
   AlertCircle 
 } from 'lucide-react';
 
+import { VALID_STAGES, ValidStage, normalizeStage } from '@/utils/fileParser';
+
 interface AddEditStudentModalProps {
   isOpen: boolean;
   studentToEdit: Student | null;
@@ -29,8 +31,6 @@ interface AddEditStudentModalProps {
   }) => Promise<{ success: boolean; error?: string }>;
 }
 
-const STAGE_PRESETS = ['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5', 'Postgraduate'];
-
 export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   isOpen,
   studentToEdit,
@@ -43,7 +43,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
   const [department, setDepartment] = useState(departments[0] || 'Information Technology (IT)');
-  const [stage, setStage] = useState('Stage 1');
+  const [stage, setStage] = useState<ValidStage>('Stage 1');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
       setStudentId(studentToEdit.studentId);
       setFullName(studentToEdit.fullName);
       setDepartment(studentToEdit.department);
-      setStage(studentToEdit.stage);
+      setStage(normalizeStage(studentToEdit.stage, 'Stage 1'));
       setPhoneNumber(studentToEdit.phoneNumber);
     } else {
       setStudentId('');
@@ -221,10 +221,10 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
               </label>
               <select
                 value={stage}
-                onChange={(e) => setStage(e.target.value)}
+                onChange={(e) => setStage(normalizeStage(e.target.value, 'Stage 1'))}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all cursor-pointer"
               >
-                {STAGE_PRESETS.map((stg) => (
+                {VALID_STAGES.map((stg) => (
                   <option key={stg} value={stg}>
                     {stg}
                   </option>

@@ -13,6 +13,7 @@ import { fetchCampaignsFromSupabase } from '@/services/campaignService';
 import { fetchDepartmentsFromSupabase, DEFAULT_TIU_DEPARTMENTS } from '@/services/departmentService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
+import { VALID_STAGES, normalizeStage } from '@/utils/fileParser';
 
 interface SMSContextType {
   // Student state
@@ -147,7 +148,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentId: c.studentId || `U2024-${Math.floor(1000 + Math.random() * 9000)}`,
       fullName: c.name,
       department: c.department || 'Information Technology',
-      stage: c.stage || 'Stage 1',
+      stage: normalizeStage(c.stage, 'Stage 1'),
       phoneNumber: c.phoneNumber,
       createdAt: c.createdAt || new Date().toISOString(),
     }));
@@ -237,16 +238,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return Array.from(set).sort();
   }, [supabaseDepartments, students]);
 
-  // Unique stages list (including standard academic stages)
+  // Standard academic stages (Stage 1 to Stage 5 strictly)
   const stages = useMemo(() => {
-    const set = new Set<string>(['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5']);
-    students.forEach((s) => {
-      if (s.stage) set.add(s.stage);
-    });
-    return Array.from(set).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-    );
-  }, [students]);
+    return [...VALID_STAGES];
+  }, []);
 
   // Filtered students by search query (Full Name, Student ID, Phone Number), Department, and Stage
   const filteredStudents = useMemo(() => {
@@ -385,7 +380,11 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stage: string;
       phoneNumber: string;
     }) => {
-      const { data: newStudent, error } = await insertStudentToSupabase(data);
+      const normalizedData = {
+        ...data,
+        stage: normalizeStage(data.stage, 'Stage 1'),
+      };
+      const { data: newStudent, error } = await insertStudentToSupabase(normalizedData);
       if (error || !newStudent) {
         return { success: false, error: error || 'Failed to create student' };
       }
@@ -414,7 +413,11 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phoneNumber?: string;
       }
     ) => {
-      const { data: updated, error } = await updateStudentInSupabase(id, data);
+      const normalizedData = {
+        ...data,
+        ...(data.stage ? { stage: normalizeStage(data.stage, 'Stage 1') } : {}),
+      };
+      const { data: updated, error } = await updateStudentInSupabase(id, normalizedData);
       if (error || !updated) {
         return { success: false, error: error || 'Failed to update student' };
       }

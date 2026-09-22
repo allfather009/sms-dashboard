@@ -40,27 +40,31 @@ NEXT_PUBLIC_SMS_API_KEY="your_live_api_key_here"
 NEXT_PUBLIC_SMS_API_ENDPOINT="https://api.your-provider.com/v1/messages"
 NEXT_PUBLIC_SMS_SENDER_ID="AIRSMS"`;
 
-  const sqlSnippet = `-- Create contacts table with UUID and timestamps
-CREATE TABLE IF NOT EXISTS public.contacts (
+  const sqlSnippet = `-- Create students table with strict Stage CHECK constraint
+CREATE TABLE IF NOT EXISTS public.students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
+  student_id TEXT NOT NULL UNIQUE,
+  full_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  stage TEXT NOT NULL CHECK (stage IN ('Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5')),
   phone_number TEXT NOT NULL,
-  department TEXT NOT NULL DEFAULT 'General',
-  stage TEXT NOT NULL DEFAULT 'Stage 1',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Enable RLS and permissive development policies
-ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
+-- Enable RLS and permissive policies
+ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read access to contacts"
-  ON public.contacts FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Allow public read access to students"
+  ON public.students FOR SELECT TO anon, authenticated USING (true);
 
-CREATE POLICY "Allow public insert access to contacts"
-  ON public.contacts FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Allow public insert access to students"
+  ON public.students FOR INSERT TO anon, authenticated WITH CHECK (true);
 
-CREATE POLICY "Allow public delete access to contacts"
-  ON public.contacts FOR DELETE TO anon, authenticated USING (true);`;
+CREATE POLICY "Allow public update access to students"
+  ON public.students FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow public delete access to students"
+  ON public.students FOR DELETE TO anon, authenticated USING (true);`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 sm:p-6">
