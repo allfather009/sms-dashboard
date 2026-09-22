@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Student } from '@/types';
+import { useSMS } from '@/context/SMSContext';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 import { 
   X, 
@@ -28,17 +29,6 @@ interface AddEditStudentModalProps {
   }) => Promise<{ success: boolean; error?: string }>;
 }
 
-const DEPARTMENT_PRESETS = [
-  'Information Technology',
-  'Computer Science',
-  'Software Engineering',
-  'Civil Engineering',
-  'Business Administration',
-  'Medical Laboratory',
-  'Architecture',
-  'Pharmacy',
-];
-
 const STAGE_PRESETS = ['Stage 1', 'Stage 2', 'Stage 3', 'Stage 4', 'Stage 5', 'Postgraduate'];
 
 export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
@@ -47,11 +37,12 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { departments } = useSMS();
   const isEditMode = Boolean(studentToEdit);
 
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
-  const [department, setDepartment] = useState('Information Technology');
+  const [department, setDepartment] = useState(departments[0] || 'Information Technology (IT)');
   const [stage, setStage] = useState('Stage 1');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,12 +59,12 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
     } else {
       setStudentId('');
       setFullName('');
-      setDepartment('Information Technology');
+      setDepartment(departments[0] || 'Information Technology (IT)');
       setStage('Stage 1');
       setPhoneNumber('');
     }
     setFormError(null);
-  }, [studentToEdit, isOpen]);
+  }, [studentToEdit, isOpen, departments]);
 
   // Real-time Iraqi phone normalization
   const phoneValidation = useMemo(() => {
@@ -215,7 +206,7 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
                 onChange={(e) => setDepartment(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all cursor-pointer"
               >
-                {DEPARTMENT_PRESETS.map((dept) => (
+                {departments.map((dept) => (
                   <option key={dept} value={dept}>
                     {dept}
                   </option>

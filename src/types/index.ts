@@ -8,6 +8,12 @@ export interface Student {
   createdAt: string;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  createdAt?: string;
+}
+
 // Backwards compatibility alias for contacts
 export interface Contact {
   id: string;

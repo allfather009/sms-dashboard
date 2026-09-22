@@ -103,7 +103,7 @@ function processRows(rows: Record<string, unknown>[]): {
     let studentId = '';
     let name = '';
     let phoneNumber = '';
-    let department = 'Information Technology';
+    let department = 'Information Technology (IT)';
     let stage = 'Stage 1';
 
     Object.entries(row).forEach(([key, val]) => {
@@ -241,28 +241,28 @@ export function downloadSampleCSV(): void {
     {
       'Student ID': 'U2024-1001',
       'Full Name': 'Ahmed Ali Al-Bayati',
-      Department: 'Information Technology',
+      Department: 'Information Technology (IT)',
       'Academic Stage': 'Stage 2',
       'Phone Number': '07501234567',
     },
     {
       'Student ID': 'U2024-1002',
       'Full Name': 'Fatima Zahra Hassan',
-      Department: 'Information Technology',
+      Department: 'Information Technology (IT)',
       'Academic Stage': 'Stage 2',
       'Phone Number': '07702345678',
     },
     {
       'Student ID': 'U2024-1003',
       'Full Name': 'Mustafa Mohammed Kareem',
-      Department: 'Computer Science',
+      Department: 'Computer Engineering',
       'Academic Stage': 'Stage 1',
       'Phone Number': '07803456789',
     },
     {
       'Student ID': 'U2024-1004',
       'Full Name': 'Zainab Hussein Al-Musawi',
-      Department: 'Software Engineering',
+      Department: 'Computer Engineering',
       'Academic Stage': 'Stage 3',
       'Phone Number': '07504567890',
     },
@@ -276,7 +276,7 @@ export function downloadSampleCSV(): void {
     {
       'Student ID': 'U2024-1006',
       'Full Name': 'Sara Bilal Al-Obaidi',
-      Department: 'Business Administration',
+      Department: 'Business and Management',
       'Academic Stage': 'Stage 1',
       'Phone Number': '07806789012',
     },

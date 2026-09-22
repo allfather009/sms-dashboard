@@ -95,9 +95,12 @@ export const StudentTable: React.FC = () => {
     const d = dept.toLowerCase();
     if (d.includes('tech') || d.includes('it')) return 'bg-blue-50 text-[#0071e3] border-blue-200/60';
     if (d.includes('comp') || d.includes('cs')) return 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
-    if (d.includes('soft') || d.includes('eng')) return 'bg-purple-50 text-purple-700 border-purple-200/60';
-    if (d.includes('civil')) return 'bg-amber-50 text-amber-700 border-amber-200/60';
-    if (d.includes('bus') || d.includes('admin')) return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+    if (d.includes('arch') || d.includes('interior')) return 'bg-cyan-50 text-cyan-800 border-cyan-200/60';
+    if (d.includes('civil') || d.includes('eng')) return 'bg-amber-50 text-amber-700 border-amber-200/60';
+    if (d.includes('bus') || d.includes('admin') || d.includes('finance') || d.includes('account')) return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+    if (d.includes('dent') || d.includes('pharm') || d.includes('physio')) return 'bg-rose-50 text-rose-700 border-rose-200/60';
+    if (d.includes('medic') || d.includes('nurs')) return 'bg-teal-50 text-teal-700 border-teal-200/60';
+    if (d.includes('english') || d.includes('relation') || d.includes('diplom')) return 'bg-purple-50 text-purple-700 border-purple-200/60';
     return 'bg-zinc-100 text-zinc-700 border-zinc-200/60';
   };
 

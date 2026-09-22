@@ -48,7 +48,7 @@ const supabase = createClient(url, key);
 
 async function runAudit() {
   let passedChecks = 0;
-  let totalChecks = 4;
+  let totalChecks = 5;
 
   // 1. Check HTTP & Auth Service
   try {
@@ -115,6 +115,25 @@ async function runAudit() {
     }
   } catch (err) {
     console.log('❌ 4. Table `public.sms_templates` check failed:', err.message);
+  }
+
+  // 5. Check departments table
+  try {
+    const { data: depts, error: deptsErr } = await supabase.from('departments').select('*').order('name');
+    if (deptsErr) {
+      if (deptsErr.code === 'PGRST205') {
+        console.log('⏳ 5. Table `public.departments`: Table does not exist in Postgres schema yet (PGRST205).');
+      } else {
+        console.log('⚠️ 5. Table `public.departments`: Error:', deptsErr.message, deptsErr.code);
+      }
+    } else {
+      console.log(`✅ 5. Table \`public.departments\`: READY & ONLINE! (${depts.length} departments verified)`);
+      depts.slice(0, 5).forEach((d) => console.log(`   - ${d.name}`));
+      if (depts.length > 5) console.log(`   ... and ${depts.length - 5} more`);
+      passedChecks++;
+    }
+  } catch (err) {
+    console.log('❌ 5. Table `public.departments` check failed:', err.message);
   }
 
   console.log('\n======================================================');

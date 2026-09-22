@@ -10,6 +10,7 @@ import {
   mapStudentToContact
 } from '@/services/studentService';
 import { fetchCampaignsFromSupabase } from '@/services/campaignService';
+import { fetchDepartmentsFromSupabase, DEFAULT_TIU_DEPARTMENTS } from '@/services/departmentService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 
@@ -82,6 +83,7 @@ interface SMSContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   removeStudent: (id: string) => Promise<void>;
   refreshStudents: () => Promise<void>;
+  refreshDepartments: (force?: boolean) => Promise<void>;
 
   // Targeting setters
   setTargetingMode: (mode: TargetingMode) => void;
@@ -212,18 +214,28 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoadingStudents(false);
   }, []);
 
+  const [supabaseDepartments, setSupabaseDepartments] = useState<string[]>(DEFAULT_TIU_DEPARTMENTS);
+
+  const refreshDepartments = useCallback(async (force = false) => {
+    const { data } = await fetchDepartmentsFromSupabase(force);
+    if (data && data.length > 0) {
+      setSupabaseDepartments(data);
+    }
+  }, []);
+
   useEffect(() => {
     refreshStudents();
-  }, [refreshStudents]);
+    refreshDepartments();
+  }, [refreshStudents, refreshDepartments]);
 
-  // Unique departments list
+  // Dynamic departments list from Supabase merged with any student departments
   const departments = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(supabaseDepartments);
     students.forEach((s) => {
       if (s.department) set.add(s.department);
     });
     return Array.from(set).sort();
-  }, [students]);
+  }, [supabaseDepartments, students]);
 
   // Unique stages list (including standard academic stages)
   const stages = useMemo(() => {
@@ -617,6 +629,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         editStudent,
         removeStudent,
         refreshStudents,
+        refreshDepartments,
         setTargetingMode,
         setTargetDepartments,
         toggleTargetDepartment,
