@@ -16,6 +16,8 @@ type RecipientItem =
 interface SendSMSRequestBody {
   recipients: RecipientItem[];
   message: string;
+  batchId?: string;
+  skipCampaignLog?: boolean;
 }
 
 /**
@@ -68,7 +70,7 @@ function personalize(template: string, item: RecipientItem): string {
 export async function POST(request: NextRequest) {
   try {
     const body: SendSMSRequestBody = await request.json();
-    const { recipients, message } = body;
+    const { recipients, message, skipCampaignLog = false } = body;
 
     // Validation
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -90,7 +92,9 @@ export async function POST(request: NextRequest) {
     const SMS_API_KEY = process.env.SMS_API_KEY;
     const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'TIUSuli';
 
-    const batchId = `TIU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const batchId =
+      body.batchId ||
+      `TIU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const startTime = Date.now();
 
     const results: Array<{
@@ -226,38 +230,40 @@ export async function POST(request: NextRequest) {
 
     const durationMs = Date.now() - startTime;
 
-    // Persist campaign record to Supabase
-    try {
-      const supabase = await createClient();
-      await supabase.from('campaign_history').insert({
-        batch_id: batchId,
-        status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
-        recipient_count: recipients.length,
-        total_segments: recipients.length,
-        delivered_count: deliveredCount,
-        failed_count: failedCount,
-        message_preview: message.length > 90 ? `${message.substring(0, 87)}...` : message,
-        sent_at: new Date().toISOString(),
-        recipients: results.map((r) => ({
-          id: r.id,
-          name: r.name,
-          department: r.department,
-          stage: r.stage,
-          studentId: r.studentId,
-          phoneNumber: r.recipient,
-          originalPhone: r.originalPhone,
-          success: r.success,
-          error: r.error,
-        })),
-        provider_details: {
-          providerName: 'Standing Tech (Bulk SMS Iraq v4)',
-          senderId: SMS_SENDER_ID,
-          endpoint: SMS_API_URL,
-          latencyMs: durationMs,
-        },
-      });
-    } catch (dbErr) {
-      console.warn('Supabase campaign logging notice:', dbErr);
+    // Persist campaign record to Supabase (skipped during client-side throttled loop to avoid duplicate records)
+    if (!skipCampaignLog) {
+      try {
+        const supabase = await createClient();
+        await supabase.from('campaign_history').insert({
+          batch_id: batchId,
+          status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
+          recipient_count: recipients.length,
+          total_segments: recipients.length,
+          delivered_count: deliveredCount,
+          failed_count: failedCount,
+          message_preview: message.length > 90 ? `${message.substring(0, 87)}...` : message,
+          sent_at: new Date().toISOString(),
+          recipients: results.map((r) => ({
+            id: r.id,
+            name: r.name,
+            department: r.department,
+            stage: r.stage,
+            studentId: r.studentId,
+            phoneNumber: r.recipient,
+            originalPhone: r.originalPhone,
+            success: r.success,
+            error: r.error,
+          })),
+          provider_details: {
+            providerName: 'Standing Tech (Bulk SMS Iraq v4)',
+            senderId: SMS_SENDER_ID,
+            endpoint: SMS_API_URL,
+            latencyMs: durationMs,
+          },
+        });
+      } catch (dbErr) {
+        console.warn('Supabase campaign logging notice:', dbErr);
+      }
     }
 
     return NextResponse.json({

@@ -9,7 +9,7 @@ import {
   deleteStudentFromSupabase,
   mapStudentToContact
 } from '@/services/studentService';
-import { fetchCampaignsFromSupabase } from '@/services/campaignService';
+import { fetchCampaignsFromSupabase, saveCampaignToSupabase } from '@/services/campaignService';
 import { fetchDepartmentsFromSupabase, DEFAULT_TIU_DEPARTMENTS } from '@/services/departmentService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
@@ -45,6 +45,9 @@ interface SMSContextType {
   composerMessage: string;
   isSending: boolean;
   sendProgress: number;
+  sendingCurrent: number;
+  sendingTotal: number;
+  sendingStudentName: string;
   toast: ToastNotification | null;
   campaignHistory: SMSBatchResult[];
   activeTab: 'students' | 'contacts' | 'upload' | 'campaigns' | 'settings';
@@ -139,9 +142,24 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [composerMessage, setComposerMessage] = useState<string>(DEFAULT_MESSAGE);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sendProgress, setSendProgress] = useState<number>(0);
+  const [sendingCurrent, setSendingCurrent] = useState<number>(0);
+  const [sendingTotal, setSendingTotal] = useState<number>(0);
+  const [sendingStudentName, setSendingStudentName] = useState<string>('');
   const [toast, setToast] = useState<ToastNotification | null>(null);
   const [campaignHistory, setCampaignHistory] = useState<SMSBatchResult[]>([]);
   const [activeTab, setActiveTab] = useState<'students' | 'contacts' | 'upload' | 'campaigns' | 'settings'>('students');
+
+  // Prevent user from accidentally closing or refreshing tab during bulk broadcast
+  useEffect(() => {
+    if (!isSending) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSending]);
 
   // Add imported contacts / students
   const addContacts = useCallback((newContacts: Contact[], append = true) => {
@@ -507,11 +525,15 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setIsSending(true);
-    setSendProgress(10);
+    setSendProgress(0);
+    setSendingCurrent(0);
+    setSendingTotal(resolvedRecipients.length);
+    setSendingStudentName('');
+
     showToast({
       type: 'sending',
       title: 'Transmitting Broadcast',
-      message: `Packaging messages for ${resolvedRecipients.length} students...`,
+      message: `Starting throttled broadcast for ${resolvedRecipients.length} students (5s delay between messages)...`,
     });
 
     try {
@@ -528,60 +550,136 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
 
-      const response = await fetch('/api/send-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipients: normalizedRecipients,
-          message: composerMessage,
-        }),
-      });
+      // Generate a batch identifier for this broadcast
+      const batchId = `TIU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const startTime = Date.now();
+      const results: Array<{
+        id?: string;
+        name?: string;
+        phoneNumber?: string;
+        originalPhone?: string;
+        department?: string;
+        stage?: string;
+        studentId?: string;
+        success: boolean;
+        error?: string;
+      }> = [];
 
-      setSendProgress(90);
-      const result = await response.json();
+      let deliveredCount = 0;
+      let failedCount = 0;
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Server error dispatching SMS');
+      // Sequential throttled dispatch: strict 5000ms delay between consecutive requests
+      for (let i = 0; i < normalizedRecipients.length; i++) {
+        const student = normalizedRecipients[i];
+        setSendingCurrent(i + 1);
+        setSendingStudentName(student.name);
+
+        // Strict 5-second delay before sending each message after the first one
+        if (i > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+
+        try {
+          const response = await fetch('/api/send-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipients: [student],
+              message: composerMessage,
+              batchId,
+              skipCampaignLog: true,
+            }),
+          });
+
+          const data = await response.json();
+          if (response.ok && data.success) {
+            deliveredCount++;
+            results.push({
+              id: student.id,
+              name: student.name,
+              phoneNumber: student.phoneNumber,
+              originalPhone: student.phoneNumber,
+              department: student.department,
+              stage: student.stage,
+              studentId: student.studentId,
+              success: true,
+            });
+          } else {
+            failedCount++;
+            results.push({
+              id: student.id,
+              name: student.name,
+              phoneNumber: student.phoneNumber,
+              originalPhone: student.phoneNumber,
+              department: student.department,
+              stage: student.stage,
+              studentId: student.studentId,
+              success: false,
+              error: data.error || 'Failed to dispatch SMS',
+            });
+          }
+        } catch (dispatchErr: unknown) {
+          failedCount++;
+          results.push({
+            id: student.id,
+            name: student.name,
+            phoneNumber: student.phoneNumber,
+            originalPhone: student.phoneNumber,
+            department: student.department,
+            stage: student.stage,
+            studentId: student.studentId,
+            success: false,
+            error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+          });
+        }
+
+        const percent = Math.round(((i + 1) / normalizedRecipients.length) * 100);
+        setSendProgress(percent);
       }
 
-      setSendProgress(100);
-
+      const totalSegments = normalizedRecipients.length;
       const batchResult: SMSBatchResult = {
-        batchId: result.batchId || `BATCH-${Date.now()}`,
-        status: result.status || 'delivered',
-        recipientCount: result.recipientCount || normalizedRecipients.length,
-        totalSegments: result.totalSegments || 1,
-        deliveredCount: result.deliveredCount || normalizedRecipients.length,
-        failedCount: result.failedCount || 0,
+        batchId,
+        status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
+        recipientCount: normalizedRecipients.length,
+        totalSegments,
+        deliveredCount,
+        failedCount,
         messagePreview: composerMessage.substring(0, 80),
-        sentAt: result.sentAt || new Date().toISOString(),
-        recipients: normalizedRecipients.map((r) => ({
-          id: r.id,
-          name: r.name,
-          phoneNumber: r.phoneNumber,
-          department: r.department,
-          stage: r.stage,
+        sentAt: new Date().toISOString(),
+        recipients: results.map((r, idx) => ({
+          id: r.id || `${batchId}-r-${idx}`,
+          name: r.name || r.phoneNumber || `Recipient ${idx + 1}`,
+          phoneNumber: r.phoneNumber || '',
+          department: r.department || '',
+          stage: r.stage || '',
         })),
         providerDetails: {
-          providerName: result.providerName || 'TIUS Direct Gateway',
-          latencyMs: result.latencyMs || 2000,
-          simulated: Boolean(result.isSimulated),
-          endpointPlaceholder: result.isSimulated ? '(Simulation Mode)' : 'Live Carrier Gateway',
+          providerName: 'Standing Tech (Bulk SMS Iraq v4 - Throttled)',
+          latencyMs: Date.now() - startTime,
+          simulated: false,
+          endpointPlaceholder: 'Live Carrier Gateway (5s Rate Limited)',
         },
       };
+
+      // Persist the consolidated campaign audit log
+      await saveCampaignToSupabase(batchResult);
 
       setCampaignHistory((prev) => [batchResult, ...prev]);
 
       showToast({
-        type: 'success',
-        title: 'SMS Broadcast Dispatched',
-        message: result.message || `Successfully sent to ${normalizedRecipients.length} students.`,
-        duration: 5000,
+        type: failedCount === 0 ? 'success' : 'warning',
+        title: failedCount === 0 ? 'SMS Broadcast Complete' : 'Broadcast Finished with Warnings',
+        message:
+          failedCount === 0
+            ? `Successfully sent ${deliveredCount} SMS messages with 5s throttling.`
+            : `Delivered ${deliveredCount} of ${normalizedRecipients.length} messages (${failedCount} failed).`,
+        duration: 6000,
       });
 
       setTimeout(() => {
         setIsComposerOpen(false);
-      }, 500);
+      }, 1000);
 
       return batchResult;
     } catch (err: unknown) {
@@ -596,6 +694,9 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsSending(false);
       setSendProgress(0);
+      setSendingCurrent(0);
+      setSendingTotal(0);
+      setSendingStudentName('');
     }
   }, [resolvedRecipients, composerMessage, showToast]);
 
@@ -636,6 +737,9 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         composerMessage,
         isSending,
         sendProgress,
+        sendingCurrent,
+        sendingTotal,
+        sendingStudentName,
         toast,
         campaignHistory,
         activeTab,

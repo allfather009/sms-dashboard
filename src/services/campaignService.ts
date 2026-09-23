@@ -95,6 +95,20 @@ export async function saveCampaignToSupabase(batch: SMSBatchResult): Promise<{
   success: boolean;
   error: string | null;
 }> {
+  // First attempt saving via server-side route
+  try {
+    const res = await fetch('/api/campaigns/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batch),
+    });
+    if (res.ok) {
+      return { success: true, error: null };
+    }
+  } catch {
+    // Fall back to client supabase direct insert
+  }
+
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'Supabase is not configured' };
   }
