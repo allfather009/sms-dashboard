@@ -78,8 +78,10 @@ interface SMSContextType {
   setFilters: (update: Partial<FilterState>) => void;
   resetFilters: () => void;
   toggleSelectStudent: (id: string) => void;
+  toggleSelectPage: (pageIds: string[]) => void;
   selectAllFiltered: () => void;
   deselectAll: () => void;
+  setSelectedStudentIds: React.Dispatch<React.SetStateAction<string[]>>;
 
   // CRUD Actions
   createStudent: (data: {
@@ -340,6 +342,18 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedStudentIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  }, []);
+
+  const toggleSelectPage = useCallback((pageIds: string[]) => {
+    setSelectedStudentIds((prev) => {
+      const pageIdSet = new Set(pageIds);
+      const isAllPageSelected = pageIds.length > 0 && pageIds.every((id) => prev.includes(id));
+      if (isAllPageSelected) {
+        return prev.filter((id) => !pageIdSet.has(id));
+      } else {
+        return Array.from(new Set([...prev, ...pageIds]));
+      }
+    });
   }, []);
 
   const selectAllFiltered = useCallback(() => {
@@ -851,8 +865,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFilters,
         resetFilters,
         toggleSelectStudent,
+        toggleSelectPage,
         selectAllFiltered,
         deselectAll,
+        setSelectedStudentIds,
         createStudent,
         editStudent,
         removeStudent,

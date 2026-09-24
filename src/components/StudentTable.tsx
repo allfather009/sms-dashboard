@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSMS } from '@/context/SMSContext';
 import { Student } from '@/types';
 import { AddEditStudentModal } from './AddEditStudentModal';
@@ -23,7 +23,9 @@ import {
   Users,
   Download,
   Radio,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const StudentTable: React.FC = () => {
@@ -34,14 +36,13 @@ export const StudentTable: React.FC = () => {
     filters,
     departments,
     stages,
-    isAllFilteredSelected,
-    isSomeFilteredSelected,
     isLoadingStudents,
     directoryMode,
     bulkDeleteStudents,
     bulkUpdateStudents,
     toggleSelectStudent,
-    selectAllFiltered,
+    toggleSelectPage,
+    deselectAll,
     setFilters,
     resetFilters,
     createStudent,
@@ -49,6 +50,50 @@ export const StudentTable: React.FC = () => {
     removeStudent,
     showToast,
   } = useSMS();
+
+  // Client-Side Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
+
+  // Reset to page 1 whenever search query or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.searchQuery, filters.department, filters.stage, filters.carrier]);
+
+  // Total pages calculation
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
+
+  // Clamping currentPage if data shrinks
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  // Paginated students slice for current page
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredStudents.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredStudents, currentPage, itemsPerPage]);
+
+  // Active page selection logic (master checkbox selects only currently visible page)
+  const isAllPageSelected = useMemo(() => {
+    if (paginatedStudents.length === 0) return false;
+    const selectedSet = new Set(selectedStudentIds);
+    return paginatedStudents.every((s) => selectedSet.has(s.id));
+  }, [paginatedStudents, selectedStudentIds]);
+
+  const isSomePageSelected = useMemo(() => {
+    if (paginatedStudents.length === 0) return false;
+    const selectedSet = new Set(selectedStudentIds);
+    const someSelected = paginatedStudents.some((s) => selectedSet.has(s.id));
+    return someSelected && !isAllPageSelected;
+  }, [paginatedStudents, selectedStudentIds, isAllPageSelected]);
+
+  const handleToggleMasterCheckbox = () => {
+    const pageIds = paginatedStudents.map((s) => s.id);
+    toggleSelectPage(pageIds);
+  };
 
   // Modals state
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
@@ -299,118 +344,73 @@ export const StudentTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Row (Selection Context & Actions) */}
-        <div className="w-full flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100">
-          {/* Left Side: Dynamic Selection Context */}
-          <div className="flex items-center gap-2 text-xs">
-            {selectedStudentIds.length > 0 ? (
-              <>
-                <span className="font-semibold text-zinc-900">
-                  {selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected
-                </span>
-                <span className="text-zinc-400">·</span>
-                <button
-                  type="button"
-                  onClick={selectAllFiltered}
-                  className="text-[#0071e3] hover:underline font-medium cursor-pointer"
-                >
-                  {isAllFilteredSelected ? 'Deselect all' : 'Select all'}
-                </button>
-              </>
-            ) : (
-              <span className="text-zinc-500 font-medium">
-                Showing <strong className="text-zinc-900 font-semibold">{filteredStudents.length}</strong> of {students.length} students
-                {directoryMode === 'manager' && (
-                  <>
-                    <span className="text-zinc-300 mx-1.5">·</span>
-                    <button
-                      type="button"
-                      onClick={selectAllFiltered}
-                      className="text-[#0071e3] hover:underline font-medium cursor-pointer"
-                    >
-                      Select all
-                    </button>
-                  </>
+        {/* Bottom Row (Selection Context & Actions) - Student Manager only */}
+        {directoryMode === 'manager' && (
+          <div className="w-full flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100">
+            {/* Left Side: Dynamic Selection Context (Rendered only when students are selected) */}
+            <div className="flex items-center gap-2 text-xs">
+              {selectedStudentIds.length > 0 && (
+                <>
+                  <span className="font-semibold text-zinc-900">
+                    {selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected
+                  </span>
+                  <span className="text-zinc-400">·</span>
+                  <button
+                    type="button"
+                    onClick={deselectAll}
+                    className="text-[#0071e3] hover:underline font-medium cursor-pointer"
+                  >
+                    Deselect all
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Right Side: Grouped Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              {/* 1. Update Selected */}
+              <button
+                type="button"
+                id="bulk-update-btn"
+                onClick={handleUpdateSelected}
+                disabled={selectedStudentIds.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-800 hover:bg-zinc-200/80 active:scale-[0.98] border border-zinc-200/70 transition-all duration-200 ease-in-out hover:shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title={selectedStudentIds.length === 0 ? "Select students to update" : selectedStudentIds.length === 1 ? "Edit selected student" : "Bulk update selected students"}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-600" />
+                <span>Update Selected</span>
+                {selectedStudentIds.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
+                    {selectedStudentIds.length}
+                  </span>
                 )}
-              </span>
-            )}
-          </div>
+              </button>
 
-          {/* Right Side: Grouped Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {directoryMode === 'manager' ? (
-              <>
-                {/* 1. Update Selected */}
-                <button
-                  type="button"
-                  id="bulk-update-btn"
-                  onClick={handleUpdateSelected}
-                  disabled={selectedStudentIds.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-800 hover:bg-zinc-200/80 active:scale-[0.98] border border-zinc-200/70 transition-all duration-200 ease-in-out hover:shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  title={selectedStudentIds.length === 0 ? "Select students to update" : selectedStudentIds.length === 1 ? "Edit selected student" : "Bulk update selected students"}
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-600" />
-                  <span>Update Selected</span>
-                  {selectedStudentIds.length > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
-                      {selectedStudentIds.length}
-                    </span>
-                  )}
-                </button>
+              {/* 2. Delete Selected (Red danger style) */}
+              <button
+                type="button"
+                id="bulk-delete-btn"
+                onClick={handleDeleteSelected}
+                disabled={selectedStudentIds.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(225,29,72,0.25)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title={selectedStudentIds.length === 0 ? "Select students to delete" : "Permanently delete selected students"}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Selected</span>
+                {selectedStudentIds.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
+                    {selectedStudentIds.length}
+                  </span>
+                )}
+              </button>
 
-                {/* 2. Delete Selected (Red danger style) */}
-                <button
-                  type="button"
-                  id="bulk-delete-btn"
-                  onClick={handleDeleteSelected}
-                  disabled={selectedStudentIds.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(225,29,72,0.25)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  title={selectedStudentIds.length === 0 ? "Select students to delete" : "Permanently delete selected students"}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Selected</span>
-                  {selectedStudentIds.length > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
-                      {selectedStudentIds.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* 3. Export Selected */}
-                <button
-                  type="button"
-                  onClick={handleExportSelected}
-                  disabled={selectedStudentIds.length === 0 || isLoadingStudents}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  title={selectedStudentIds.length === 0 ? "Select students to export" : "Export selected students to CSV"}
-                >
-                  <Download className="w-3.5 h-3.5 text-zinc-600" />
-                  <span>Export Selected</span>
-                  {selectedStudentIds.length > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
-                      {selectedStudentIds.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* 4. + Add Student (Blue primary style) */}
-                <button
-                  type="button"
-                  onClick={handleOpenAddModal}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Add Student</span>
-                </button>
-              </>
-            ) : (
-              /* In SMS Directory mode: Clean Export Selected button */
+              {/* 3. Export Selected */}
               <button
                 type="button"
                 onClick={handleExportSelected}
-                disabled={isLoadingStudents}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
+                disabled={selectedStudentIds.length === 0 || isLoadingStudents}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title={selectedStudentIds.length === 0 ? "Select students to export" : "Export selected students to CSV"}
               >
                 <Download className="w-3.5 h-3.5 text-zinc-600" />
                 <span>Export Selected</span>
@@ -420,9 +420,19 @@ export const StudentTable: React.FC = () => {
                   </span>
                 )}
               </button>
-            )}
+
+              {/* 4. + Add Student (Blue primary style) */}
+              <button
+                type="button"
+                onClick={handleOpenAddModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Student</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Main Student Data Table */}
@@ -542,22 +552,24 @@ export const StudentTable: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-black/[0.06] bg-zinc-50/70 text-zinc-500 text-[11px] uppercase tracking-wider font-semibold">
-                  {/* Select All Checkbox */}
+                  {/* Select All Page Checkbox */}
                   <th className="py-3 px-4 w-12 text-center">
                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
-                        checked={isAllFilteredSelected}
+                        id="master-select-page-checkbox"
+                        checked={isAllPageSelected}
                         ref={(input) => {
-                          if (input) input.indeterminate = isSomeFilteredSelected;
+                          if (input) input.indeterminate = isSomePageSelected;
                         }}
-                        onChange={selectAllFiltered}
+                        onChange={handleToggleMasterCheckbox}
                         className="rounded text-[#0071e3] focus:ring-[#0071e3] w-4 h-4 cursor-pointer"
-                        title={isAllFilteredSelected ? 'Deselect all filtered' : 'Select all filtered'}
+                        title={isAllPageSelected ? 'Deselect visible students on this page' : 'Select visible students on this page'}
                       />
                     </div>
                   </th>
@@ -570,7 +582,7 @@ export const StudentTable: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] text-xs animate-table-in">
-                {filteredStudents.map((student) => {
+                {paginatedStudents.map((student) => {
                   const isSelected = selectedStudentIds.includes(student.id);
                   const initial = student.fullName.trim().charAt(0).toUpperCase() || '?';
                   const phoneInfo = normalizeIraqPhoneNumber(student.phoneNumber);
@@ -694,7 +706,87 @@ export const StudentTable: React.FC = () => {
               </tbody>
             </table>
           </div>
-        )}
+
+          {/* Sleek Apple-Inspired Pagination Footer */}
+          <div className="border-t border-black/[0.06] bg-slate-50/70 backdrop-blur-xs px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {/* Left: Visible Records Range */}
+            <div className="text-zinc-500 font-medium order-2 sm:order-1">
+              Showing <span className="font-semibold text-zinc-900">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+              <span className="font-semibold text-zinc-900">{Math.min(currentPage * itemsPerPage, filteredStudents.length)}</span> of{' '}
+              <span className="font-semibold text-zinc-900">{filteredStudents.length}</span> students
+            </div>
+
+            {/* Middle & Right: Rows per page + Page Navigation */}
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center sm:justify-end order-1 sm:order-2">
+              {/* Rows per page selector */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="items-per-page-select" className="text-zinc-500 font-medium text-xs">
+                  Rows per page:
+                </label>
+                <div className="relative">
+                  <select
+                    id="items-per-page-select"
+                    aria-label="Rows per page"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="appearance-none bg-white border border-zinc-200/90 text-zinc-800 rounded-lg pl-2.5 pr-7 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all cursor-pointer shadow-2xs hover:border-zinc-300"
+                  >
+                    {[10, 50, 100, 500, 1000].map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400">
+                    <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Page indicator & Next/Prev buttons */}
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-600 font-medium px-1">
+                  Page <strong className="text-zinc-900 font-semibold">{currentPage}</strong> of{' '}
+                  <strong className="text-zinc-900 font-semibold">{totalPages}</strong>
+                </span>
+
+                <div className="inline-flex items-center gap-1.5">
+                  {/* Previous Button */}
+                  <button
+                    type="button"
+                    id="pagination-prev-btn"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage <= 1 || isLoadingStudents}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-200/80 bg-white text-zinc-700 font-medium hover:bg-zinc-100 hover:text-zinc-900 active:scale-[0.98] transition-all duration-150 shadow-2xs disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                    title="Previous page"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+
+                  {/* Next Button */}
+                  <button
+                    type="button"
+                    id="pagination-next-btn"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages || isLoadingStudents}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-200/80 bg-white text-zinc-700 font-medium hover:bg-zinc-100 hover:text-zinc-900 active:scale-[0.98] transition-all duration-150 shadow-2xs disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                    title="Next page"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       </div>
 
       {/* Add / Edit Student Modal */}
