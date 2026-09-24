@@ -225,12 +225,12 @@ export const StudentTable: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5">
-      {/* Top Search, Filter, and Action Controls - Floating Sticky Panel */}
-      <div className="sticky top-4 z-20 bg-white/90 backdrop-blur-md rounded-xl p-4 border border-slate-200/80 shadow-sm space-y-3 transition-all">
-        {/* Row 1 (Search & Filters): Live search bar alongside dropdown filters */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      {/* Unified Sticky Control Panel */}
+      <div className="sticky top-4 z-20 bg-white/95 backdrop-blur-md shadow-sm border border-slate-200 rounded-xl p-4 mb-4 flex flex-col gap-4 transition-all">
+        {/* Top Row (Search & Filters): Global search on left, dropdowns on right */}
+        <div className="w-full flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
-          <div className="relative flex-1 max-w-lg">
+          <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -241,8 +241,9 @@ export const StudentTable: React.FC = () => {
             />
             {filters.searchQuery && (
               <button
+                type="button"
                 onClick={() => setFilters({ searchQuery: '' })}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-0.5 rounded-full"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-0.5 rounded-full cursor-pointer"
                 aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -286,6 +287,7 @@ export const StudentTable: React.FC = () => {
             {/* Reset Filters */}
             {(filters.searchQuery || filters.department !== 'All' || filters.stage !== 'All' || (filters.carrier && filters.carrier !== 'All')) && (
               <button
+                type="button"
                 onClick={resetFilters}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.96] cursor-pointer"
                 title="Reset filters"
@@ -297,20 +299,55 @@ export const StudentTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2 (Controls & Actions): Clean layout without Supabase Live/Sync clutter */}
-        <div className="flex items-center justify-between flex-wrap gap-2.5 pt-2.5 border-t border-slate-100">
-          {/* Left-aligned controls: Bulk actions in manager mode, or student count in SMS mode */}
+        {/* Bottom Row (Selection Context & Actions) */}
+        <div className="w-full flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100">
+          {/* Left Side: Dynamic Selection Context */}
+          <div className="flex items-center gap-2 text-xs">
+            {selectedStudentIds.length > 0 ? (
+              <>
+                <span className="font-semibold text-zinc-900">
+                  {selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected
+                </span>
+                <span className="text-zinc-400">·</span>
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  className="text-[#0071e3] hover:underline font-medium cursor-pointer"
+                >
+                  {isAllFilteredSelected ? 'Deselect all' : 'Select all'}
+                </button>
+              </>
+            ) : (
+              <span className="text-zinc-500 font-medium">
+                Showing <strong className="text-zinc-900 font-semibold">{filteredStudents.length}</strong> of {students.length} students
+                {directoryMode === 'manager' && (
+                  <>
+                    <span className="text-zinc-300 mx-1.5">·</span>
+                    <button
+                      type="button"
+                      onClick={selectAllFiltered}
+                      className="text-[#0071e3] hover:underline font-medium cursor-pointer"
+                    >
+                      Select all
+                    </button>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Right Side: Grouped Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             {directoryMode === 'manager' ? (
               <>
-                {/* Bulk Action: Update Selected */}
+                {/* 1. Update Selected */}
                 <button
                   type="button"
                   id="bulk-update-btn"
                   onClick={handleUpdateSelected}
                   disabled={selectedStudentIds.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-800 hover:bg-zinc-200/80 active:scale-[0.98] border border-zinc-200/70 transition-all duration-200 ease-in-out hover:shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                  title={selectedStudentIds.length === 1 ? "Edit selected student" : "Bulk update selected students"}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-800 hover:bg-zinc-200/80 active:scale-[0.98] border border-zinc-200/70 transition-all duration-200 ease-in-out hover:shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  title={selectedStudentIds.length === 0 ? "Select students to update" : selectedStudentIds.length === 1 ? "Edit selected student" : "Bulk update selected students"}
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-600" />
                   <span>Update Selected</span>
@@ -321,14 +358,14 @@ export const StudentTable: React.FC = () => {
                   )}
                 </button>
 
-                {/* Bulk Action: Delete Selected (Red button) */}
+                {/* 2. Delete Selected (Red danger style) */}
                 <button
                   type="button"
                   id="bulk-delete-btn"
                   onClick={handleDeleteSelected}
                   disabled={selectedStudentIds.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(225,29,72,0.25)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                  title="Permanently delete selected students"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(225,29,72,0.25)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  title={selectedStudentIds.length === 0 ? "Select students to delete" : "Permanently delete selected students"}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Selected</span>
@@ -338,110 +375,54 @@ export const StudentTable: React.FC = () => {
                     </span>
                   )}
                 </button>
+
+                {/* 3. Export Selected */}
+                <button
+                  type="button"
+                  onClick={handleExportSelected}
+                  disabled={selectedStudentIds.length === 0 || isLoadingStudents}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  title={selectedStudentIds.length === 0 ? "Select students to export" : "Export selected students to CSV"}
+                >
+                  <Download className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>Export Selected</span>
+                  {selectedStudentIds.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
+                      {selectedStudentIds.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* 4. + Add Student (Blue primary style) */}
+                <button
+                  type="button"
+                  onClick={handleOpenAddModal}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Student</span>
+                </button>
               </>
             ) : (
-              <span className="text-xs text-zinc-500 font-medium">
-                Showing <strong className="text-zinc-900">{filteredStudents.length}</strong> of {students.length} students
-              </span>
-            )}
-          </div>
-
-          {/* Right-aligned action buttons */}
-          <div className="flex items-center gap-2">
-            {/* Export Selected Button */}
-            <button
-              onClick={handleExportSelected}
-              disabled={isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-              title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
-            >
-              <Download className="w-3.5 h-3.5 text-zinc-600" />
-              <span>Export Selected</span>
-              {selectedStudentIds.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
-                  {selectedStudentIds.length}
-                </span>
-              )}
-            </button>
-
-            {/* Primary Action: + Add Student (Only in Student Manager mode) */}
-            {directoryMode === 'manager' && (
+              /* In SMS Directory mode: Clean Export Selected button */
               <button
-                onClick={handleOpenAddModal}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
+                type="button"
+                onClick={handleExportSelected}
+                disabled={isLoadingStudents}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                title={selectedStudentIds.length > 0 ? "Export selected students to CSV" : "Export filtered students to CSV"}
               >
-                <Plus className="w-4 h-4" />
-                <span>+ Add Student</span>
+                <Download className="w-3.5 h-3.5 text-zinc-600" />
+                <span>Export Selected</span>
+                {selectedStudentIds.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
+                    {selectedStudentIds.length}
+                  </span>
+                )}
               </button>
             )}
           </div>
         </div>
-
-        {/* Selection Bar - Only in Student Manager mode */}
-        {directoryMode === 'manager' && selectedStudentIds.length > 0 && (
-          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-zinc-900">
-                {selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected
-              </span>
-              <span className="text-zinc-400">•</span>
-              <button
-                onClick={selectAllFiltered}
-                className="text-[#0071e3] hover:underline font-medium cursor-pointer"
-              >
-                {isAllFilteredSelected ? 'Deselect all' : 'Select all filtered'}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {directoryMode === 'manager' ? (
-                <>
-                  {/* Bulk Update in selection bar */}
-                  <button
-                    onClick={handleUpdateSelected}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
-                    title={selectedStudentIds.length === 1 ? "Edit student" : "Bulk update students"}
-                  >
-                    <SlidersHorizontal className="w-3 h-3 text-zinc-600" />
-                    <span>
-                      {selectedStudentIds.length === 1
-                        ? 'Edit Student (1)'
-                        : `Bulk Update (${selectedStudentIds.length})`}
-                    </span>
-                  </button>
-
-                  {/* Bulk Delete (Red) in selection bar */}
-                  <button
-                    onClick={handleDeleteSelected}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
-                    title="Permanently delete selected students"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Delete Selected ({selectedStudentIds.length})</span>
-                  </button>
-
-                  <button
-                    onClick={handleExportSelected}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
-                    title="Export selected students to CSV"
-                  >
-                    <Download className="w-3 h-3 text-zinc-600" />
-                    <span>Export ({selectedStudentIds.length})</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleExportSelected}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
-                  title="Export selected students to CSV"
-                >
-                  <Download className="w-3 h-3 text-zinc-600" />
-                  <span>Export ({selectedStudentIds.length})</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Main Student Data Table */}
