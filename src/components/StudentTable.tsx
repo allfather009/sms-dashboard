@@ -5,6 +5,7 @@ import { useSMS } from '@/context/SMSContext';
 import { Student } from '@/types';
 import { AddEditStudentModal } from './AddEditStudentModal';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { BulkUpdateModal } from './BulkUpdateModal';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 import Papa from 'papaparse';
 import { 
@@ -23,7 +24,9 @@ import {
   Database, 
   Users,
   Download,
-  Radio
+  Radio,
+  SlidersHorizontal,
+  MessageSquare
 } from 'lucide-react';
 
 export const StudentTable: React.FC = () => {
@@ -38,6 +41,10 @@ export const StudentTable: React.FC = () => {
     isSomeFilteredSelected,
     isLoadingStudents,
     isSupabaseLive,
+    directoryMode,
+    setDirectoryMode,
+    bulkDeleteStudents,
+    bulkUpdateStudents,
     toggleSelectStudent,
     selectAllFiltered,
     setFilters,
@@ -55,7 +62,55 @@ export const StudentTable: React.FC = () => {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [isBulkUpdateOpen, setIsBulkUpdateOpen] = useState(false);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Smart Update Selected Handler
+  const handleUpdateSelected = () => {
+    if (selectedStudentIds.length === 0) {
+      showToast({
+        type: 'warning',
+        title: 'No Students Selected',
+        message: 'Please check at least one student to update.',
+      });
+      return;
+    }
+
+    if (selectedStudentIds.length === 1) {
+      // Single Selection Logic: Open standard Edit Student modal
+      const student = students.find((s) => s.id === selectedStudentIds[0]);
+      if (student) {
+        setStudentToEdit(student);
+        setIsAddEditOpen(true);
+      }
+    } else {
+      // Multi-Selection Logic: Open special Bulk Update modal (Department & Stage)
+      setIsBulkUpdateOpen(true);
+    }
+  };
+
+  // Bulk Delete Handler
+  const handleDeleteSelected = () => {
+    if (selectedStudentIds.length === 0) {
+      showToast({
+        type: 'warning',
+        title: 'No Students Selected',
+        message: 'Please check at least one student to delete.',
+      });
+      return;
+    }
+    setIsBulkDeleteOpen(true);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    await bulkDeleteStudents(selectedStudentIds);
+    setIsBulkDeleteOpen(false);
+  };
+
+  const handleConfirmBulkUpdate = async (updates: { department?: string; stage?: string }) => {
+    return await bulkUpdateStudents(selectedStudentIds, updates);
+  };
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -169,6 +224,59 @@ export const StudentTable: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-5">
       {/* Top Search, Filter, and Action Controls - Floating Sticky Panel */}
       <div className="sticky top-4 z-20 bg-white/90 backdrop-blur-md rounded-xl p-4 border border-slate-200/80 shadow-sm space-y-3 transition-all">
+        {/* Segmented Control Header: Toggle between SMS Directory and Student Manager */}
+        <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="inline-flex p-1 bg-zinc-100/90 rounded-xl border border-slate-200/80 shadow-xs">
+              <button
+                type="button"
+                id="view-mode-sms-tab"
+                onClick={() => setDirectoryMode('sms')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                  directoryMode === 'sms'
+                    ? 'bg-white text-zinc-900 shadow-xs font-bold'
+                    : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#0071e3]" />
+                <span>SMS Directory</span>
+              </button>
+
+              <button
+                type="button"
+                id="view-mode-manager-tab"
+                onClick={() => setDirectoryMode('manager')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                  directoryMode === 'manager'
+                    ? 'bg-white text-zinc-900 shadow-xs font-bold'
+                    : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#0071e3]" />
+                <span>Student Manager</span>
+              </button>
+            </div>
+
+            {directoryMode === 'manager' ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/70">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>Bulk Cohort Administration</span>
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-50 text-[#0071e3] border border-blue-200/70">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3]" />
+                <span>SMS Broadcasting</span>
+              </span>
+            )}
+          </div>
+
+          <div className="text-[11px] text-zinc-400 font-medium">
+            {directoryMode === 'manager'
+              ? 'Promote cohorts, batch update departments, or bulk delete records'
+              : 'Filter students and dispatch targeted SMS announcements'}
+          </div>
+        </div>
+
         {/* Row 1 (Search & Filters): Live search bar alongside dropdown filters */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
@@ -288,8 +396,48 @@ export const StudentTable: React.FC = () => {
             </button>
           </div>
 
-          {/* Right-aligned action buttons (Export Selected, + Add Student) */}
-          <div className="flex items-center gap-2">
+          {/* Right-aligned action buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {directoryMode === 'manager' && (
+              <>
+                {/* Bulk Action: Update Selected */}
+                <button
+                  type="button"
+                  id="bulk-update-btn"
+                  onClick={handleUpdateSelected}
+                  disabled={selectedStudentIds.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-800 hover:bg-zinc-200/80 active:scale-[0.98] border border-zinc-200/70 transition-all duration-200 ease-in-out hover:shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  title={selectedStudentIds.length === 1 ? "Edit selected student" : "Bulk update selected students"}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>Update Selected</span>
+                  {selectedStudentIds.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-blue-100 text-[#0071e3] font-bold">
+                      {selectedStudentIds.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Bulk Action: Delete Selected (Red button) */}
+                <button
+                  type="button"
+                  id="bulk-delete-btn"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedStudentIds.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(225,29,72,0.25)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  title="Permanently delete selected students"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Selected</span>
+                  {selectedStudentIds.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
+                      {selectedStudentIds.length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+
             {/* Export Selected Button */}
             <button
               onClick={handleExportSelected}
@@ -317,7 +465,7 @@ export const StudentTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Selection / Quick Broadcast Bar */}
+        {/* Selection / Quick Broadcast or Bulk Actions Bar */}
         {selectedStudentIds.length > 0 && (
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
@@ -333,26 +481,65 @@ export const StudentTable: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleExportSelected}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
-                title="Export selected students to CSV"
-              >
-                <Download className="w-3 h-3 text-zinc-600" />
-                <span>Export ({selectedStudentIds.length})</span>
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {directoryMode === 'manager' ? (
+                <>
+                  {/* Bulk Update in selection bar */}
+                  <button
+                    onClick={handleUpdateSelected}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
+                    title={selectedStudentIds.length === 1 ? "Edit student" : "Bulk update students"}
+                  >
+                    <SlidersHorizontal className="w-3 h-3 text-zinc-600" />
+                    <span>
+                      {selectedStudentIds.length === 1
+                        ? 'Edit Student (1)'
+                        : `Bulk Update (${selectedStudentIds.length})`}
+                    </span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setTargetingMode('selected');
-                  setIsComposerOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
-              >
-                <Send className="w-3 h-3" />
-                <span>Broadcast to {selectedStudentIds.length} Selected</span>
-              </button>
+                  {/* Bulk Delete (Red) in selection bar */}
+                  <button
+                    onClick={handleDeleteSelected}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
+                    title="Permanently delete selected students"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Delete Selected ({selectedStudentIds.length})</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportSelected}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
+                    title="Export selected students to CSV"
+                  >
+                    <Download className="w-3 h-3 text-zinc-600" />
+                    <span>Export ({selectedStudentIds.length})</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleExportSelected}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
+                    title="Export selected students to CSV"
+                  >
+                    <Download className="w-3 h-3 text-zinc-600" />
+                    <span>Export ({selectedStudentIds.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setTargetingMode('selected');
+                      setIsComposerOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Broadcast to {selectedStudentIds.length} Selected</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -599,18 +786,20 @@ export const StudentTable: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1">
-                          {/* Compose Single SMS */}
-                          <button
-                            onClick={() => {
-                              if (!isSelected) toggleSelectStudent(student.id);
-                              setTargetingMode('selected');
-                              setIsComposerOpen(true);
-                            }}
-                            className="p-1.5 text-zinc-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
-                            title="Compose SMS to this student"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Compose Single SMS - only in SMS Directory mode */}
+                          {directoryMode === 'sms' && (
+                            <button
+                              onClick={() => {
+                                if (!isSelected) toggleSelectStudent(student.id);
+                                setTargetingMode('selected');
+                                setIsComposerOpen(true);
+                              }}
+                              className="p-1.5 text-zinc-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
+                              title="Compose SMS to this student"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                           {/* Edit Student */}
                           <button
@@ -648,14 +837,32 @@ export const StudentTable: React.FC = () => {
         onSave={handleSaveStudent}
       />
 
-      {/* Delete Confirmation Alert Modal */}
+      {/* Single Delete Confirmation Alert Modal */}
       <DeleteConfirmationModal
         isOpen={Boolean(studentToDelete)}
         student={studentToDelete}
         onClose={() => setStudentToDelete(null)}
         onConfirm={async (id) => {
-          await removeStudent(id);
+          if (id) await removeStudent(id);
         }}
+      />
+
+      {/* Bulk Delete Severe Warning Modal */}
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteOpen}
+        bulkCount={selectedStudentIds.length}
+        onClose={() => setIsBulkDeleteOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+      />
+
+      {/* Bulk Update Cohort Modal */}
+      <BulkUpdateModal
+        isOpen={isBulkUpdateOpen}
+        selectedCount={selectedStudentIds.length}
+        departments={departments}
+        stages={stages}
+        onClose={() => setIsBulkUpdateOpen(false)}
+        onConfirm={handleConfirmBulkUpdate}
       />
     </div>
   );

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
-  const { activeTab, setActiveTab, selectedStudentIds, setTargetingMode, setIsComposerOpen } = useSMS();
+  const { activeTab, setActiveTab, selectedStudentIds, setTargetingMode, setIsComposerOpen, directoryMode } = useSMS();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
@@ -91,7 +91,7 @@ function DashboardContent() {
       </main>
 
       {/* Floating Quick Compose Pill for mobile or when scrolled */}
-      {selectedStudentIds.length > 0 && (
+      {selectedStudentIds.length > 0 && directoryMode === 'sms' && (
         <aside 
           aria-label="Selection summary and actions"
           className="fixed bottom-6 right-6 z-40 hidden sm:flex items-center gap-3 p-1.5 pl-4 rounded-full bg-zinc-950/90 text-white backdrop-blur-xl shadow-2xl border border-white/10 animate-in slide-in-from-bottom-3"

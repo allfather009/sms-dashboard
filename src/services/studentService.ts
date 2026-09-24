@@ -293,3 +293,86 @@ export async function batchInsertStudentsToSupabase(
     };
   }
 }
+
+/**
+ * Permanently deletes multiple students from Supabase by an array of UUIDs
+ */
+export async function bulkDeleteStudentsFromSupabase(ids: string[]): Promise<{
+  success: boolean;
+  count: number;
+  error: string | null;
+}> {
+  if (!ids || ids.length === 0) {
+    return { success: true, count: 0, error: null };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { success: true, count: ids.length, error: null };
+  }
+
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from('students').delete().in('id', ids);
+
+    if (error) {
+      return { success: false, count: 0, error: error.message };
+    }
+
+    return { success: true, count: ids.length, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, count: 0, error: msg };
+  }
+}
+
+/**
+ * Bulk updates shared attributes (department and/or stage) across multiple students
+ */
+export async function bulkUpdateStudentsInSupabase(
+  ids: string[],
+  updates: {
+    department?: string;
+    stage?: string;
+  }
+): Promise<{
+  success: boolean;
+  count: number;
+  error: string | null;
+}> {
+  if (!ids || ids.length === 0) {
+    return { success: true, count: 0, error: null };
+  }
+
+  const dbPayload: Partial<DatabaseStudentRow> = {};
+  if (updates.department && updates.department.trim()) {
+    dbPayload.department = updates.department.trim();
+  }
+  if (updates.stage && updates.stage.trim()) {
+    dbPayload.stage = updates.stage.trim();
+  }
+
+  if (Object.keys(dbPayload).length === 0) {
+    return { success: false, count: 0, error: 'No fields specified for bulk update.' };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { success: true, count: ids.length, error: null };
+  }
+
+  try {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('students')
+      .update(dbPayload)
+      .in('id', ids);
+
+    if (error) {
+      return { success: false, count: 0, error: error.message };
+    }
+
+    return { success: true, count: ids.length, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, count: 0, error: msg };
+  }
+}

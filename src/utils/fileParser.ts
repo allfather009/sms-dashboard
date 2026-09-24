@@ -13,6 +13,12 @@ export type ValidStage = (typeof VALID_STAGES)[number];
 export function normalizeStage(input: unknown, defaultStage: ValidStage = 'Stage 1'): ValidStage {
   if (!input) return defaultStage;
   let s = String(input).trim();
+
+  // If uploaded stage value is just a raw digit (e.g., 1, 2, 3), automatically prepend "Stage "
+  if (/^[1-5]$/.test(s)) {
+    return `Stage ${s}` as ValidStage;
+  }
+
   // Fix typos like 'satge', 'Stage Satge', etc.
   s = s.replace(/satge/gi, 'Stage');
   // Match any digits 1-5 anywhere in the string
@@ -45,7 +51,8 @@ export interface ParseResult {
  * Normalizes column keys to standard field names
  */
 function normalizeHeader(header: string): 'studentId' | 'name' | 'phoneNumber' | 'department' | 'stage' | null {
-  const clean = header.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const raw = header.trim().toLowerCase();
+  const clean = raw.replace(/[^a-z0-9]/g, '');
 
   if (
     clean === 'studentid' ||
@@ -53,7 +60,11 @@ function normalizeHeader(header: string): 'studentId' | 'name' | 'phoneNumber' |
     clean === 'id' ||
     clean === 'universityid' ||
     clean === 'rollno' ||
-    clean === 'regno'
+    clean === 'regno' ||
+    clean === 'no' ||
+    raw === 'no' ||
+    raw === 'no.' ||
+    raw === 'n.'
   ) {
     return 'studentId';
   }

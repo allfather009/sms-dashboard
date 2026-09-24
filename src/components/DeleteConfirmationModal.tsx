@@ -6,25 +6,29 @@ import { AlertTriangle, Loader2, X } from 'lucide-react';
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
-  student: Student | null;
+  student?: Student | null;
+  bulkCount?: number;
   onClose: () => void;
-  onConfirm: (id: string) => Promise<void>;
+  onConfirm: (id?: string) => Promise<void>;
 }
 
 export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
   isOpen,
   student,
+  bulkCount,
   onClose,
   onConfirm,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  if (!isOpen || !student) return null;
+  if (!isOpen || (!student && (!bulkCount || bulkCount <= 0))) return null;
+
+  const isBulk = Boolean(bulkCount && bulkCount > 0);
 
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await onConfirm(student.id);
+      await onConfirm(student?.id);
       onClose();
     } finally {
       setIsDeleting(false);
@@ -50,7 +54,9 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-zinc-900">
-                  Delete Student Record?
+                  {isBulk
+                    ? `Permanently Delete ${bulkCount} Students?`
+                    : 'Delete Student Record?'}
                 </h3>
                 <button
                   onClick={onClose}
@@ -61,13 +67,25 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                 </button>
               </div>
 
-              <p className="text-xs text-zinc-600 mt-2 leading-relaxed">
-                Are you sure you want to delete <strong className="text-zinc-900">{student.fullName}</strong> (Student ID: <code className="font-mono font-semibold text-zinc-800">{student.studentId}</code>)?
-              </p>
-
-              <p className="text-[11px] text-rose-600 mt-2 font-medium">
-                This action will immediately remove the student from the Supabase database.
-              </p>
+              {isBulk ? (
+                <div className="space-y-2 mt-2">
+                  <p className="text-xs text-zinc-700 leading-relaxed font-medium">
+                    Are you sure you want to permanently delete <strong className="text-rose-700 font-bold">{bulkCount} students</strong>? This cannot be undone.
+                  </p>
+                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200/70 text-[11px] text-rose-800">
+                    All {bulkCount} selected student records will be purged immediately from the Supabase database.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-zinc-600 mt-2 leading-relaxed">
+                    Are you sure you want to delete <strong className="text-zinc-900">{student?.fullName}</strong> (Student ID: <code className="font-mono font-semibold text-zinc-800">{student?.studentId}</code>)?
+                  </p>
+                  <p className="text-[11px] text-rose-600 mt-2 font-medium">
+                    This action will immediately remove the student from the Supabase database.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -93,7 +111,9 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                   <span>Deleting...</span>
                 </>
               ) : (
-                <span>Delete Student</span>
+                <span>
+                  {isBulk ? `Delete ${bulkCount} Students` : 'Delete Student'}
+                </span>
               )}
             </button>
           </div>

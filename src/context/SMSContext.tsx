@@ -7,6 +7,8 @@ import {
   insertStudentToSupabase, 
   updateStudentInSupabase, 
   deleteStudentFromSupabase,
+  bulkDeleteStudentsFromSupabase,
+  bulkUpdateStudentsInSupabase,
   mapStudentToContact
 } from '@/services/studentService';
 import { fetchCampaignsFromSupabase, saveCampaignToSupabase } from '@/services/campaignService';
@@ -39,6 +41,17 @@ interface SMSContextType {
   targetCombinedStage: string;
   resolvedRecipients: Student[];
   targetSummaryText: string;
+
+  // View mode: 'sms' (SMS Directory) or 'manager' (Student Manager)
+  directoryMode: 'sms' | 'manager';
+  setDirectoryMode: (mode: 'sms' | 'manager') => void;
+
+  // Bulk Actions
+  bulkDeleteStudents: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
+  bulkUpdateStudents: (
+    ids: string[],
+    updates: { department?: string; stage?: string }
+  ) => Promise<{ success: boolean; count?: number; error?: string }>;
 
   // Composer & Dispatch state
   isComposerOpen: boolean;
@@ -136,6 +149,9 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [targetStage, setTargetStage] = useState<string>('');
   const [targetCombinedDept, setTargetCombinedDept] = useState<string>('');
   const [targetCombinedStage, setTargetCombinedStage] = useState<string>('');
+
+  // View mode: 'sms' (SMS Directory) vs 'manager' (Student Manager)
+  const [directoryMode, setDirectoryMode] = useState<'sms' | 'manager'>('sms');
 
   // SMS Composer & Sending state
   const [isComposerOpen, setIsComposerOpen] = useState<boolean>(false);
@@ -504,6 +520,80 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [students, showToast]
   );
 
+  // Bulk Delete Students
+  const bulkDeleteStudents = useCallback(
+    async (ids: string[]): Promise<{ success: boolean; error?: string }> => {
+      if (ids.length === 0) return { success: true };
+
+      const { success, error } = await bulkDeleteStudentsFromSupabase(ids);
+      if (!success) {
+        showToast({
+          type: 'error',
+          title: 'Bulk Delete Failed',
+          message: error || 'Could not delete selected students from Supabase.',
+        });
+        return { success: false, error: error || 'Failed' };
+      }
+
+      // Update local state immediately
+      const idSet = new Set(ids);
+      setStudents((prev) => prev.filter((s) => !idSet.has(s.id)));
+      setSelectedStudentIds((prev) => prev.filter((id) => !idSet.has(id)));
+
+      showToast({
+        type: 'success',
+        title: 'Students Deleted',
+        message: `Successfully deleted ${ids.length} student${ids.length !== 1 ? 's' : ''} permanently.`,
+      });
+
+      return { success: true };
+    },
+    [showToast]
+  );
+
+  // Bulk Update Students (e.g. promoting cohort stage or updating department)
+  const bulkUpdateStudents = useCallback(
+    async (
+      ids: string[],
+      updates: { department?: string; stage?: string }
+    ): Promise<{ success: boolean; count?: number; error?: string }> => {
+      if (ids.length === 0) return { success: true, count: 0 };
+
+      const { success, count, error } = await bulkUpdateStudentsInSupabase(ids, updates);
+      if (!success) {
+        showToast({
+          type: 'error',
+          title: 'Bulk Update Failed',
+          message: error || 'Could not update selected students in Supabase.',
+        });
+        return { success: false, error: error || 'Failed' };
+      }
+
+      // Update local state immediately
+      const idSet = new Set(ids);
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (!idSet.has(s.id)) return s;
+          return {
+            ...s,
+            ...(updates.department ? { department: updates.department.trim() } : {}),
+            ...(updates.stage ? { stage: updates.stage.trim() } : {}),
+          };
+        })
+      );
+      setSelectedStudentIds([]);
+
+      showToast({
+        type: 'success',
+        title: 'Bulk Update Applied',
+        message: `Successfully updated ${count || ids.length} student${ids.length !== 1 ? 's' : ''}.`,
+      });
+
+      return { success: true, count };
+    },
+    [showToast]
+  );
+
   // Bulk SMS Dispatch
   const triggerSendSMS = useCallback(async (): Promise<SMSBatchResult | null> => {
     if (resolvedRecipients.length === 0) {
@@ -733,6 +823,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         targetCombinedStage,
         resolvedRecipients,
         targetSummaryText,
+        directoryMode,
+        setDirectoryMode,
+        bulkDeleteStudents,
+        bulkUpdateStudents,
         isComposerOpen,
         composerMessage,
         isSending,
