@@ -23,8 +23,7 @@ import {
   Users,
   Download,
   Radio,
-  SlidersHorizontal,
-  MessageSquare
+  SlidersHorizontal
 } from 'lucide-react';
 
 export const StudentTable: React.FC = () => {
@@ -39,7 +38,6 @@ export const StudentTable: React.FC = () => {
     isSomeFilteredSelected,
     isLoadingStudents,
     directoryMode,
-    setDirectoryMode,
     bulkDeleteStudents,
     bulkUpdateStudents,
     toggleSelectStudent,
@@ -229,59 +227,6 @@ export const StudentTable: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-5">
       {/* Top Search, Filter, and Action Controls - Floating Sticky Panel */}
       <div className="sticky top-4 z-20 bg-white/90 backdrop-blur-md rounded-xl p-4 border border-slate-200/80 shadow-sm space-y-3 transition-all">
-        {/* Segmented Control Header: Toggle between SMS Directory and Student Manager */}
-        <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="inline-flex p-1 bg-zinc-100/90 rounded-xl border border-slate-200/80 shadow-xs">
-              <button
-                type="button"
-                id="view-mode-sms-tab"
-                onClick={() => setDirectoryMode('sms')}
-                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
-                  directoryMode === 'sms'
-                    ? 'bg-white text-zinc-900 shadow-xs font-bold'
-                    : 'text-zinc-500 hover:text-zinc-800'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-[#0071e3]" />
-                <span>SMS Directory</span>
-              </button>
-
-              <button
-                type="button"
-                id="view-mode-manager-tab"
-                onClick={() => setDirectoryMode('manager')}
-                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
-                  directoryMode === 'manager'
-                    ? 'bg-white text-zinc-900 shadow-xs font-bold'
-                    : 'text-zinc-500 hover:text-zinc-800'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#0071e3]" />
-                <span>Student Manager</span>
-              </button>
-            </div>
-
-            {directoryMode === 'manager' ? (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/70">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span>Bulk Cohort Administration</span>
-              </span>
-            ) : (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-50 text-[#0071e3] border border-blue-200/70">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3]" />
-                <span>SMS Broadcasting</span>
-              </span>
-            )}
-          </div>
-
-          <div className="text-[11px] text-zinc-400 font-medium">
-            {directoryMode === 'manager'
-              ? 'Promote cohorts, batch update departments, or bulk delete records'
-              : 'Filter students and dispatch targeted SMS announcements'}
-          </div>
-        </div>
-
         {/* Row 1 (Search & Filters): Live search bar alongside dropdown filters */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Live Search Input (Full Name, Student ID, Phone Number) */}
@@ -419,19 +364,21 @@ export const StudentTable: React.FC = () => {
               )}
             </button>
 
-            {/* Primary Action: + Add Student */}
-            <button
-              onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Add Student</span>
-            </button>
+            {/* Primary Action: + Add Student (Only in Student Manager mode) */}
+            {directoryMode === 'manager' && (
+              <button
+                onClick={handleOpenAddModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_8px_rgba(0,113,227,0.3)] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Student</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Selection Bar */}
-        {selectedStudentIds.length > 0 && (
+        {/* Selection Bar - Only in Student Manager mode */}
+        {directoryMode === 'manager' && selectedStudentIds.length > 0 && (
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-zinc-900">
@@ -513,7 +460,7 @@ export const StudentTable: React.FC = () => {
                   <th className="py-3 px-4">Department</th>
                   <th className="py-3 px-4">Stage</th>
                   <th className="py-3 px-4">Phone Number (Iraq)</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  {directoryMode === 'manager' && <th className="py-3 px-4 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -559,14 +506,15 @@ export const StudentTable: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-200/80" />
-                        <div className="w-7 h-7 rounded-lg bg-slate-200/80" />
-                        <div className="w-7 h-7 rounded-lg bg-slate-200/80" />
-                      </div>
-                    </td>
+                    {/* Actions - Only in Student Manager mode */}
+                    {directoryMode === 'manager' && (
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <div className="w-7 h-7 rounded-lg bg-slate-200/80" />
+                          <div className="w-7 h-7 rounded-lg bg-slate-200/80" />
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -637,7 +585,7 @@ export const StudentTable: React.FC = () => {
                   <th className="py-3 px-4">Department</th>
                   <th className="py-3 px-4">Stage</th>
                   <th className="py-3 px-4">Phone Number (Iraq)</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  {directoryMode === 'manager' && <th className="py-3 px-4 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] text-xs animate-table-in">
@@ -732,32 +680,33 @@ export const StudentTable: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Action Menu (Edit, Delete, SMS) */}
-                      <td
-                        className="py-3 px-4 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-end gap-1">
+                      {/* Action Menu (Edit, Delete) - Only in Student Manager mode */}
+                      {directoryMode === 'manager' && (
+                        <td
+                          className="py-3 px-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Edit Student */}
+                            <button
+                              onClick={(e) => handleOpenEditModal(student, e)}
+                              className="p-1.5 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
+                              title="Edit student details"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
 
-                          {/* Edit Student */}
-                          <button
-                            onClick={(e) => handleOpenEditModal(student, e)}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
-                            title="Edit student details"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Delete Student */}
-                          <button
-                            onClick={(e) => handleOpenDeleteModal(student, e)}
-                            className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
-                            title="Delete student"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                            {/* Delete Student */}
+                            <button
+                              onClick={(e) => handleOpenDeleteModal(student, e)}
+                              className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
+                              title="Delete student"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

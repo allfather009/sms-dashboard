@@ -10,10 +10,9 @@ import { DynamicIslandToast } from '@/components/DynamicIslandToast';
 import { CampaignHistory } from '@/components/CampaignHistory';
 import { ProviderSettingsModal } from '@/components/ProviderSettingsModal';
 import { DashboardStats } from '@/components/DashboardStats';
-import { UploadCloud } from 'lucide-react';
 
 function DashboardContent() {
-  const { activeTab, setActiveTab } = useSMS();
+  const { activeTab } = useSMS();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
@@ -40,21 +39,6 @@ function DashboardContent() {
             <p className="text-xs sm:text-sm text-zinc-500 mt-1 max-w-2xl leading-relaxed">
               Official student communication portal for broadcasting SMS announcements across academic stages and departments.
             </p>
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2.5 self-start md:self-auto">
-            <button
-              onClick={() => setActiveTab(activeTab === 'upload' ? 'students' : 'upload')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.98] cursor-pointer ${
-                activeTab === 'upload'
-                  ? 'bg-zinc-900 text-white'
-                  : 'bg-white text-zinc-700 border border-zinc-200/80 hover:bg-zinc-50'
-              }`}
-            >
-              <UploadCloud className="w-3.5 h-3.5" />
-              <span>{activeTab === 'upload' ? 'Back to Students' : 'Import Excel / CSV'}</span>
-            </button>
           </div>
         </div>
 
