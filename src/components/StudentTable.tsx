@@ -6,12 +6,12 @@ import { Student } from '@/types';
 import { AddEditStudentModal } from './AddEditStudentModal';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { BulkUpdateModal } from './BulkUpdateModal';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 import Papa from 'papaparse';
 import { 
   Search, 
   X, 
-  Send, 
   Trash2, 
   Edit3, 
   GraduationCap, 
@@ -20,8 +20,6 @@ import {
   Phone, 
   Building2, 
   Layers, 
-  RefreshCw, 
-  Database, 
   Users,
   Download,
   Radio,
@@ -40,7 +38,6 @@ export const StudentTable: React.FC = () => {
     isAllFilteredSelected,
     isSomeFilteredSelected,
     isLoadingStudents,
-    isSupabaseLive,
     directoryMode,
     setDirectoryMode,
     bulkDeleteStudents,
@@ -52,9 +49,6 @@ export const StudentTable: React.FC = () => {
     createStudent,
     editStudent,
     removeStudent,
-    refreshStudents,
-    setIsComposerOpen,
-    setTargetingMode,
     showToast,
   } = useSMS();
 
@@ -64,7 +58,6 @@ export const StudentTable: React.FC = () => {
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isBulkUpdateOpen, setIsBulkUpdateOpen] = useState(false);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Smart Update Selected Handler
   const handleUpdateSelected = () => {
@@ -112,11 +105,23 @@ export const StudentTable: React.FC = () => {
     return await bulkUpdateStudents(selectedStudentIds, updates);
   };
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true);
-    await refreshStudents();
-    setIsRefreshing(false);
-  };
+  // Dropdown filter options for custom dropdowns
+  const departmentFilterOptions: DropdownOption[] = [
+    { value: 'All', label: 'All Departments' },
+    ...departments.map((dept) => ({ value: dept, label: dept })),
+  ];
+
+  const stageFilterOptions: DropdownOption[] = [
+    { value: 'All', label: 'All Stages' },
+    ...stages.map((stg) => ({ value: stg, label: stg })),
+  ];
+
+  const carrierFilterOptions: DropdownOption[] = [
+    { value: 'All', label: 'All Carriers' },
+    { value: 'Asiacell', label: 'Asiacell' },
+    { value: 'Zain Iraq', label: 'Zain Iraq' },
+    { value: 'Korek', label: 'Korek' },
+  ];
 
   const handleOpenAddModal = () => {
     setStudentToEdit(null);
@@ -300,58 +305,38 @@ export const StudentTable: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Dropdown Filters (Department, Stage, Telecom Carrier) */}
+          {/* Quick Custom Dropdown Filters (Department, Stage, Telecom Carrier) */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Department Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
-              <Building2 className="w-3.5 h-3.5 text-zinc-400" />
-              <select
-                value={filters.department}
-                onChange={(e) => setFilters({ department: e.target.value })}
-                className="text-xs bg-transparent text-zinc-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="All">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomDropdown
+              id="department-filter-select"
+              icon={<Building2 className="w-3.5 h-3.5 text-zinc-400" />}
+              options={departmentFilterOptions}
+              value={filters.department}
+              onChange={(val) => setFilters({ department: val })}
+              panelClassName="w-[280px]"
+            />
 
             {/* Stage Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
-              <Layers className="w-3.5 h-3.5 text-zinc-400" />
-              <select
-                value={filters.stage}
-                onChange={(e) => setFilters({ stage: e.target.value })}
-                className="text-xs bg-transparent text-zinc-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="All">All Stages</option>
-                {stages.map((stg) => (
-                  <option key={stg} value={stg}>
-                    {stg}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomDropdown
+              id="stage-filter-select"
+              icon={<Layers className="w-3.5 h-3.5 text-zinc-400" />}
+              options={stageFilterOptions}
+              value={filters.stage}
+              onChange={(val) => setFilters({ stage: val })}
+              panelClassName="w-[200px]"
+            />
 
             {/* Telecom Carrier Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-zinc-100/90 rounded-xl px-2.5 py-1.5 border border-slate-200/60">
-              <Radio className="w-3.5 h-3.5 text-zinc-400" />
-              <select
-                id="carrier-filter-select"
-                aria-label="Filter by Telecom Carrier"
-                value={filters.carrier || 'All'}
-                onChange={(e) => setFilters({ carrier: e.target.value })}
-                className="text-xs bg-transparent text-zinc-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="All">All Carriers</option>
-                <option value="Asiacell">Asiacell</option>
-                <option value="Zain Iraq">Zain Iraq</option>
-                <option value="Korek">Korek</option>
-              </select>
-            </div>
+            <CustomDropdown
+              id="carrier-filter-select"
+              aria-label="Filter by Telecom Carrier"
+              icon={<Radio className="w-3.5 h-3.5 text-zinc-400" />}
+              options={carrierFilterOptions}
+              value={filters.carrier || 'All'}
+              onChange={(val) => setFilters({ carrier: val })}
+              panelClassName="w-[200px]"
+            />
 
             {/* Reset Filters */}
             {(filters.searchQuery || filters.department !== 'All' || filters.stage !== 'All' || (filters.carrier && filters.carrier !== 'All')) && (
@@ -367,38 +352,11 @@ export const StudentTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2 (Controls & Actions): Left-aligned status indicators and right-aligned action buttons */}
+        {/* Row 2 (Controls & Actions): Clean layout without Supabase Live/Sync clutter */}
         <div className="flex items-center justify-between flex-wrap gap-2.5 pt-2.5 border-t border-slate-100">
-          {/* Left-aligned status indicators (Supabase Live, Sync) */}
-          <div className="flex items-center gap-2">
-            {/* Supabase Status Indicator */}
-            <div
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-200 ${
-                isSupabaseLive
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
-                  : 'bg-zinc-100 text-zinc-600 border-zinc-200'
-              }`}
-              title="Connected to Supabase students table"
-            >
-              <Database className="w-3 h-3" />
-              <span>Supabase Live</span>
-            </div>
-
-            {/* Sync Button */}
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing || isLoadingStudents}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.95] disabled:opacity-50 cursor-pointer"
-              title="Sync table from Supabase"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#0071e3]' : ''}`} />
-              <span>Sync</span>
-            </button>
-          </div>
-
-          {/* Right-aligned action buttons */}
+          {/* Left-aligned controls: Bulk actions in manager mode, or student count in SMS mode */}
           <div className="flex items-center gap-2 flex-wrap">
-            {directoryMode === 'manager' && (
+            {directoryMode === 'manager' ? (
               <>
                 {/* Bulk Action: Update Selected */}
                 <button
@@ -436,8 +394,15 @@ export const StudentTable: React.FC = () => {
                   )}
                 </button>
               </>
+            ) : (
+              <span className="text-xs text-zinc-500 font-medium">
+                Showing <strong className="text-zinc-900">{filteredStudents.length}</strong> of {students.length} students
+              </span>
             )}
+          </div>
 
+          {/* Right-aligned action buttons */}
+          <div className="flex items-center gap-2">
             {/* Export Selected Button */}
             <button
               onClick={handleExportSelected}
@@ -465,7 +430,7 @@ export const StudentTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Selection / Quick Broadcast or Bulk Actions Bar */}
+        {/* Selection Bar */}
         {selectedStudentIds.length > 0 && (
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
@@ -518,27 +483,14 @@ export const StudentTable: React.FC = () => {
                   </button>
                 </>
               ) : (
-                <>
-                  <button
-                    onClick={handleExportSelected}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
-                    title="Export selected students to CSV"
-                  >
-                    <Download className="w-3 h-3 text-zinc-600" />
-                    <span>Export ({selectedStudentIds.length})</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setTargetingMode('selected');
-                      setIsComposerOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-all duration-200 ease-in-out hover:shadow-md active:scale-[0.98] shadow-xs cursor-pointer"
-                  >
-                    <Send className="w-3 h-3" />
-                    <span>Broadcast to {selectedStudentIds.length} Selected</span>
-                  </button>
-                </>
+                <button
+                  onClick={handleExportSelected}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border border-zinc-200 transition-all duration-200 ease-in-out hover:shadow-xs active:scale-[0.97] cursor-pointer"
+                  title="Export selected students to CSV"
+                >
+                  <Download className="w-3 h-3 text-zinc-600" />
+                  <span>Export ({selectedStudentIds.length})</span>
+                </button>
               )}
             </div>
           </div>
@@ -786,20 +738,6 @@ export const StudentTable: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1">
-                          {/* Compose Single SMS - only in SMS Directory mode */}
-                          {directoryMode === 'sms' && (
-                            <button
-                              onClick={() => {
-                                if (!isSelected) toggleSelectStudent(student.id);
-                                setTargetingMode('selected');
-                                setIsComposerOpen(true);
-                              }}
-                              className="p-1.5 text-zinc-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-lg transition-all duration-150 ease-in-out active:scale-[0.90] cursor-pointer"
-                              title="Compose SMS to this student"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                            </button>
-                          )}
 
                           {/* Edit Student */}
                           <button

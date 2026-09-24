@@ -5,11 +5,11 @@ import { useSMS } from '@/context/SMSContext';
 import { 
   MessageSquare, 
   UploadCloud, 
-  Users, 
   History, 
   Code2, 
   Send, 
-  Sparkles
+  Sparkles,
+  SlidersHorizontal
 } from 'lucide-react';
 
 export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) => {
@@ -17,11 +17,16 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
     activeTab, 
     setActiveTab, 
     contacts, 
-    selectedContacts, 
+    selectedStudentIds,
+    directoryMode,
+    setDirectoryMode,
+    setTargetingMode,
     setIsComposerOpen,
     loadSampleData,
     isSupabaseLive
   } = useSMS();
+
+  const isStudentsTab = activeTab === 'students' || (activeTab as string) === 'contacts';
 
   return (
     <header className="relative w-full border-b border-black/[0.06] bg-white/75 backdrop-blur-xl transition-all">
@@ -49,23 +54,44 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
           </div>
         </div>
 
-        {/* macOS-style Segmented Control */}
+        {/* macOS-style Segmented Control: Tab Reordering */}
         <nav className="hidden md:flex items-center bg-zinc-200/60 p-1 rounded-xl border border-black/[0.04]">
+          {/* 1. SMS Directory Tab (Default / First) */}
           <button
-            onClick={() => setActiveTab('students')}
+            onClick={() => {
+              setActiveTab('students');
+              setDirectoryMode('sms');
+            }}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
-              activeTab === 'students' || (activeTab as string) === 'contacts'
+              isStudentsTab && directoryMode === 'sms'
                 ? 'bg-white text-zinc-900 shadow-sm font-semibold'
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Users className="w-3.5 h-3.5 text-[#0071e3]" />
-            <span>Students</span>
+            <MessageSquare className="w-3.5 h-3.5 text-[#0071e3]" />
+            <span>SMS Directory</span>
             <span className="ml-0.5 px-1.5 py-0.2 text-[10px] rounded-full bg-zinc-100 text-zinc-600 font-mono">
               {contacts.length}
             </span>
           </button>
 
+          {/* 2. Student Manager Tab (Second) */}
+          <button
+            onClick={() => {
+              setActiveTab('students');
+              setDirectoryMode('manager');
+            }}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
+              isStudentsTab && directoryMode === 'manager'
+                ? 'bg-white text-zinc-900 shadow-sm font-semibold'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#0071e3]" />
+            <span>Student Manager</span>
+          </button>
+
+          {/* 3. Import Data */}
           <button
             onClick={() => setActiveTab('upload')}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
@@ -78,6 +104,7 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
             <span>Import Data</span>
           </button>
 
+          {/* 4. Campaign Log */}
           <button
             onClick={() => setActiveTab('campaigns')}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ease-in-out active:scale-[0.97] cursor-pointer ${
@@ -114,16 +141,21 @@ export const Navbar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSetting
             <span className="hidden sm:inline">Settings</span>
           </button>
 
-          {/* Primary Compose SMS Button */}
+          {/* Primary & Single Entry Point: Compose SMS Button */}
           <button
-            onClick={() => setIsComposerOpen(true)}
+            onClick={() => {
+              if (selectedStudentIds.length > 0) {
+                setTargetingMode('selected');
+              }
+              setIsComposerOpen(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:bg-[#0062c4] active:scale-[0.98] transition-all duration-200 ease-in-out hover:shadow-md shadow-[0_2px_10px_rgba(0,113,227,0.3)] cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Compose SMS</span>
-            {selectedContacts.length > 0 && (
+            {selectedStudentIds.length > 0 && (
               <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-white/20 font-mono font-bold">
-                {selectedContacts.length}
+                {selectedStudentIds.length}
               </span>
             )}
           </button>

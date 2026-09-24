@@ -12,6 +12,7 @@ import {
   Sparkles,
   ArrowRight
 } from 'lucide-react';
+import { CustomDropdown } from './CustomDropdown';
 
 interface BulkUpdateModalProps {
   isOpen: boolean;
@@ -138,19 +139,17 @@ export const BulkUpdateModal: React.FC<BulkUpdateModalProps> = ({
               <span className="text-[11px] text-zinc-400 font-normal">Optional</span>
             </label>
 
-            <select
+            <CustomDropdown
               value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
+              onChange={setSelectedDepartment}
               disabled={isSaving}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all cursor-pointer disabled:bg-zinc-100"
-            >
-              <option value="">-- Leave Department Unchanged --</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '-- Leave Department Unchanged --' },
+                ...departments.map((dept) => ({ value: dept, label: dept }))
+              ]}
+              className="w-full"
+              buttonClassName="w-full py-2.5 bg-white text-xs border-zinc-200"
+            />
           </div>
 
           {/* Academic Stage Field (Cohort Promotion) */}
@@ -163,19 +162,17 @@ export const BulkUpdateModal: React.FC<BulkUpdateModalProps> = ({
               <span className="text-[11px] text-zinc-400 font-normal">Optional</span>
             </label>
 
-            <select
+            <CustomDropdown
               value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value)}
+              onChange={setSelectedStage}
               disabled={isSaving}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] transition-all cursor-pointer disabled:bg-zinc-100"
-            >
-              <option value="">-- Leave Stage Unchanged --</option>
-              {availableStages.map((stg) => (
-                <option key={stg} value={stg}>
-                  {stg}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '-- Leave Stage Unchanged --' },
+                ...availableStages.map((stg) => ({ value: stg, label: stg }))
+              ]}
+              className="w-full"
+              buttonClassName="w-full py-2.5 bg-white text-xs border-zinc-200"
+            />
 
             {/* Quick Cohort Promotion Buttons */}
             <div className="pt-1 flex flex-wrap items-center gap-1.5">

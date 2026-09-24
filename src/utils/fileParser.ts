@@ -39,6 +39,77 @@ export function normalizeStage(input: unknown, defaultStage: ValidStage = 'Stage
   return defaultStage;
 }
 
+export interface ParseFileOptions {
+  defaultStage?: ValidStage;
+  overrideStage?: ValidStage;
+  defaultDepartment?: string;
+  overrideDepartment?: string;
+  knownDepartments?: string[];
+}
+
+/**
+ * Normalizes and strictly matches a department against known Supabase departments
+ */
+export function normalizeDepartment(raw: string, knownDepartments?: string[]): string {
+  if (!raw || !raw.trim()) {
+    return knownDepartments && knownDepartments.length > 0
+      ? knownDepartments[0]
+      : 'Information Technology (IT)';
+  }
+
+  const trimmed = raw.trim();
+  if (!knownDepartments || knownDepartments.length === 0) {
+    return trimmed;
+  }
+
+  // 1. Exact match
+  const exactMatch = knownDepartments.find((d) => d === trimmed);
+  if (exactMatch) return exactMatch;
+
+  // 2. Case-insensitive match
+  const lower = trimmed.toLowerCase();
+  const caseMatch = knownDepartments.find((d) => d.toLowerCase() === lower);
+  if (caseMatch) return caseMatch;
+
+  // 3. Normalized alphanumeric / Acronym match (e.g. MLS -> Medical Laboratory Science (MLS))
+  const clean = lower.replace(/[^a-z0-9]/g, '');
+  for (const dept of knownDepartments) {
+    const deptLower = dept.toLowerCase();
+    const deptClean = deptLower.replace(/[^a-z0-9]/g, '');
+    if (deptClean.includes(clean) || clean.includes(deptClean)) {
+      return dept;
+    }
+  }
+
+  // 4. Domain keyword match
+  if (lower.includes('it') || lower.includes('tech') || lower.includes('software')) {
+    const it = knownDepartments.find((d) => d.toLowerCase().includes('information tech') || d.toLowerCase().includes('it'));
+    if (it) return it;
+  }
+  if (lower.includes('mls') || lower.includes('medical anal') || lower.includes('lab')) {
+    const mls = knownDepartments.find((d) => d.toLowerCase().includes('mls') || d.toLowerCase().includes('medical lab'));
+    if (mls) return mls;
+  }
+  if (lower.includes('cs') || lower.includes('comp') || lower.includes('soft')) {
+    const cs = knownDepartments.find((d) => d.toLowerCase().includes('computer'));
+    if (cs) return cs;
+  }
+  if (lower.includes('dent')) {
+    const dent = knownDepartments.find((d) => d.toLowerCase().includes('dent'));
+    if (dent) return dent;
+  }
+  if (lower.includes('pharm')) {
+    const pharm = knownDepartments.find((d) => d.toLowerCase().includes('pharm'));
+    if (pharm) return pharm;
+  }
+  if (lower.includes('civil') || lower.includes('eng')) {
+    const civil = knownDepartments.find((d) => d.toLowerCase().includes('civil'));
+    if (civil) return civil;
+  }
+
+  return knownDepartments[0] || trimmed;
+}
+
 export interface ParseResult {
   contacts: Contact[];
   students: Student[];
@@ -118,7 +189,7 @@ function normalizeHeader(header: string): 'studentId' | 'name' | 'phoneNumber' |
  */
 function processRows(
   rows: Record<string, unknown>[],
-  options?: { defaultStage?: ValidStage; overrideStage?: ValidStage }
+  options?: ParseFileOptions
 ): {
   contacts: Contact[];
   students: Student[];
@@ -151,7 +222,7 @@ function processRows(
     let studentId = '';
     let name = '';
     let phoneNumber = '';
-    let department = 'Information Technology (IT)';
+    let department = '';
     let stage: string = fallbackStage;
 
     Object.entries(row).forEach(([key, val]) => {
@@ -182,11 +253,16 @@ function processRows(
     const effectiveStudentId = studentId || `U2024-${1000 + index}`;
     const effectiveStage = overrideStage || normalizeStage(stage, fallbackStage);
 
+    // Apply strict department matching against Supabase departments
+    const effectiveDepartment = options?.overrideDepartment
+      ? options.overrideDepartment
+      : normalizeDepartment(department, options?.knownDepartments);
+
     const studentItem: Student = {
       id: generatedId,
       studentId: effectiveStudentId,
       fullName: name || `Student ${index + 1}`,
-      department,
+      department: effectiveDepartment,
       stage: effectiveStage,
       phoneNumber: cleanedPhone,
       createdAt: new Date().toISOString(),
@@ -198,7 +274,7 @@ function processRows(
       name: studentItem.fullName,
       studentId: studentItem.studentId,
       phoneNumber: cleanedPhone,
-      department,
+      department: effectiveDepartment,
       stage: effectiveStage,
       createdAt: studentItem.createdAt,
     });
@@ -212,7 +288,7 @@ function processRows(
  */
 export async function parseContactFile(
   file: File,
-  options?: { defaultStage?: ValidStage; overrideStage?: ValidStage }
+  options?: ParseFileOptions
 ): Promise<ParseResult> {
   const fileName = file.name.toLowerCase();
 

@@ -13,12 +13,14 @@ import {
   FileText, 
   RefreshCw,
   GraduationCap,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react';
 import { VALID_STAGES, ValidStage } from '@/utils/fileParser';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
 
 export const UploadZone: React.FC = () => {
-  const { addContacts, refreshStudents, students, setActiveTab, showToast } = useSMS();
+  const { addContacts, refreshStudents, students, setActiveTab, showToast, departments } = useSMS();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -30,17 +32,41 @@ export const UploadZone: React.FC = () => {
   } | null>(null);
   const [appendMode, setAppendMode] = useState(true);
   const [stageMappingOption, setStageMappingOption] = useState<string>('auto');
+  const [departmentMappingOption, setDepartmentMappingOption] = useState<string>('auto');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const stageOptions: DropdownOption[] = [
+    { value: 'auto', label: 'Auto-detect (Strict Stage 1–5)' },
+    ...VALID_STAGES.map((stg) => ({
+      value: stg,
+      label: `Assign all to ${stg}`,
+    })),
+  ];
+
+  const departmentOptions: DropdownOption[] = [
+    { value: 'auto', label: 'Auto-detect (Match Supabase Depts)' },
+    ...departments.map((dept) => ({
+      value: dept,
+      label: `Assign all to ${dept}`,
+    })),
+  ];
 
   const handleFileProcess = async (file: File) => {
     setErrorMessage(null);
     setIsProcessing(true);
 
     try {
-      const parseOptions = stageMappingOption === 'auto'
-        ? { defaultStage: 'Stage 1' as ValidStage }
-        : { defaultStage: stageMappingOption as ValidStage, overrideStage: stageMappingOption as ValidStage };
+      const parseOptions = {
+        defaultStage: 'Stage 1' as ValidStage,
+        ...(stageMappingOption !== 'auto'
+          ? { defaultStage: stageMappingOption as ValidStage, overrideStage: stageMappingOption as ValidStage }
+          : {}),
+        knownDepartments: departments,
+        ...(departmentMappingOption !== 'auto'
+          ? { overrideDepartment: departmentMappingOption }
+          : {}),
+      };
 
       const result = await parseContactFile(file, parseOptions);
 
@@ -191,36 +217,48 @@ export const UploadZone: React.FC = () => {
           </div>
 
           {/* Import options & controls */}
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs w-full max-w-xl">
-            {/* Academic Stage Mapping Dropdown */}
-            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200/90 px-3 py-2 rounded-xl text-zinc-700 shadow-xs">
-              <Layers className="w-3.5 h-3.5 text-[#0071e3] flex-shrink-0" />
-              <label htmlFor="csv-stage-select" className="font-medium whitespace-nowrap text-zinc-700">
-                Stage Mapping:
-              </label>
-              <select
+          <div className="mt-6 flex flex-col md:flex-row items-center justify-center gap-3 text-xs w-full max-w-2xl flex-wrap">
+            {/* Academic Stage Mapping Tool */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zinc-600 whitespace-nowrap text-[11px]">
+                Stage:
+              </span>
+              <CustomDropdown
                 id="csv-stage-select"
+                icon={<Layers className="w-3.5 h-3.5 text-[#0071e3]" />}
+                options={stageOptions}
                 value={stageMappingOption}
-                onChange={(e) => setStageMappingOption(e.target.value)}
-                className="bg-white border border-zinc-200 rounded-lg px-2.5 py-1 text-zinc-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer text-xs"
-              >
-                <option value="auto">Auto-detect (Strict Stage 1–5)</option>
-                {VALID_STAGES.map((stg) => (
-                  <option key={stg} value={stg}>
-                    Assign all to {stg}
-                  </option>
-                ))}
-              </select>
+                onChange={setStageMappingOption}
+                className="w-full sm:w-auto"
+                panelClassName="w-[250px]"
+              />
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600 bg-zinc-100/80 hover:bg-zinc-200/80 px-3 py-2 rounded-xl transition-colors">
+            {/* Department Mapping Tool (Directly next to Stage Mapping) */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zinc-600 whitespace-nowrap text-[11px]">
+                Department:
+              </span>
+              <CustomDropdown
+                id="csv-department-select"
+                icon={<Building2 className="w-3.5 h-3.5 text-[#0071e3]" />}
+                options={departmentOptions}
+                value={departmentMappingOption}
+                onChange={setDepartmentMappingOption}
+                className="w-full sm:w-auto"
+                panelClassName="w-[280px]"
+              />
+            </div>
+
+            {/* Append Mode Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600 bg-zinc-100/90 hover:bg-zinc-200/80 px-3 py-1.5 rounded-xl border border-slate-200/70 transition-colors">
               <input
                 type="checkbox"
                 checked={appendMode}
                 onChange={(e) => setAppendMode(e.target.checked)}
-                className="rounded text-[#0071e3] focus:ring-[#0071e3] w-3.5 h-3.5"
+                className="rounded text-[#0071e3] focus:ring-[#0071e3] w-3.5 h-3.5 cursor-pointer"
               />
-              <span>Append ({students.length} loaded)</span>
+              <span className="text-[11px] font-medium">Append ({students.length} loaded)</span>
             </label>
           </div>
 

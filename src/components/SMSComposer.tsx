@@ -22,6 +22,7 @@ import {
   Globe,
   AlertTriangle
 } from 'lucide-react';
+import { CustomDropdown } from './CustomDropdown';
 
 export const SMSComposer: React.FC = () => {
   const {
@@ -314,29 +315,21 @@ export const SMSComposer: React.FC = () => {
                   <span>Target Specific Stage Within Department:</span>
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select
+                  <CustomDropdown
                     value={targetCombinedDept}
-                    onChange={(e) => setTargetCombinedDept(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                  >
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setTargetCombinedDept}
+                    options={departments}
+                    className="w-full"
+                    buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+                  />
 
-                  <select
+                  <CustomDropdown
                     value={targetCombinedStage}
-                    onChange={(e) => setTargetCombinedStage(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                  >
-                    {stages.map((stg) => (
-                      <option key={stg} value={stg}>
-                        {stg}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setTargetCombinedStage}
+                    options={stages}
+                    className="w-full"
+                    buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+                  />
                 </div>
               </div>
             )}
@@ -402,18 +395,20 @@ export const SMSComposer: React.FC = () => {
                 </button>
               )}
             </label>
-            <select
+            <CustomDropdown
               value={selectedTemplateId}
-              onChange={(e) => handleSelectTemplate(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all cursor-pointer shadow-xs"
-            >
-              <option value="">Choose a pre-configured university template...</option>
-              {templates.map((tmpl) => (
-                <option key={tmpl.id} value={tmpl.id}>
-                  {tmpl.title} — {tmpl.description}
-                </option>
-              ))}
-            </select>
+              onChange={handleSelectTemplate}
+              placeholder="Choose a pre-configured university template..."
+              options={[
+                { value: '', label: 'Choose a pre-configured university template...' },
+                ...templates.map((tmpl) => ({
+                  value: tmpl.id,
+                  label: `${tmpl.title} — ${tmpl.description}`
+                }))
+              ]}
+              className="w-full"
+              buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+            />
           </div>
 
           {/* Dynamic Attribute Insertion Tags */}

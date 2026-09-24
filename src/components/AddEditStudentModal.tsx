@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { VALID_STAGES, ValidStage, normalizeStage } from '@/utils/fileParser';
+import { CustomDropdown } from './CustomDropdown';
 
 interface AddEditStudentModalProps {
   isOpen: boolean;
@@ -197,39 +198,31 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
           {/* Department & Stage Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="font-semibold text-zinc-700 flex items-center gap-1.5 mb-1">
+              <label className="font-semibold text-zinc-700 flex items-center gap-1.5 mb-1 text-xs">
                 <Building2 className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Department *</span>
               </label>
-              <select
+              <CustomDropdown
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all cursor-pointer"
-              >
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
+                onChange={setDepartment}
+                options={departments}
+                className="w-full"
+                buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+              />
             </div>
 
             <div>
-              <label className="font-semibold text-zinc-700 flex items-center gap-1.5 mb-1">
+              <label className="font-semibold text-zinc-700 flex items-center gap-1.5 mb-1 text-xs">
                 <Layers className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Academic Stage *</span>
               </label>
-              <select
+              <CustomDropdown
                 value={stage}
-                onChange={(e) => setStage(normalizeStage(e.target.value, 'Stage 1'))}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all cursor-pointer"
-              >
-                {VALID_STAGES.map((stg) => (
-                  <option key={stg} value={stg}>
-                    {stg}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setStage(normalizeStage(val, 'Stage 1'))}
+                options={VALID_STAGES}
+                className="w-full"
+                buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+              />
             </div>
           </div>
 
