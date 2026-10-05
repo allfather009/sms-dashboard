@@ -80,12 +80,15 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
     setIsOpen(false);
   };
 
-  const isFullWidth = className.includes('w-full');
+  const isFullWidth =
+    className.includes('w-full') &&
+    !className.includes('sm:w-auto') &&
+    !className.includes('md:w-auto');
 
   return (
     <div
       ref={containerRef}
-      className={`relative text-left ${isFullWidth ? 'block w-full' : 'inline-block'} ${className}`}
+      className={`relative text-left ${isOpen ? 'z-50' : 'z-10'} ${isFullWidth ? 'block w-full' : 'inline-block'} ${className}`}
       onKeyDown={handleKeyDown}
     >
       {/* Trigger Button */}
@@ -120,7 +123,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
       {isOpen && (
         <div
           role="listbox"
-          className={`absolute left-0 mt-1.5 z-50 bg-white shadow-lg rounded-xl border border-slate-200 py-1 focus:outline-none animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-y-auto ${
+          className={`absolute left-0 mt-1.5 z-50 bg-white shadow-xl rounded-xl border border-slate-200 py-1 focus:outline-none animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-y-auto ${
             isFullWidth ? 'w-full min-w-[200px]' : 'w-auto min-w-[200px] max-w-[320px]'
           } ${panelClassName}`}
         >

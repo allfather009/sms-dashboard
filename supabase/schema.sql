@@ -156,6 +156,31 @@ CREATE POLICY "Allow public delete access to sms_templates"
   USING (true);
 
 -- ==============================================================================
+-- TABLE 4: APP SETTINGS (SMS GATEWAYS & GENERAL CONFIG)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  id TEXT PRIMARY KEY,
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to app_settings" ON public.app_settings;
+CREATE POLICY "Allow public read access to app_settings"
+  ON public.app_settings FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Allow public upsert access to app_settings" ON public.app_settings;
+CREATE POLICY "Allow public upsert access to app_settings"
+  ON public.app_settings FOR ALL
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- ==============================================================================
 -- SEED DATA: CONTACTS
 -- ==============================================================================
 INSERT INTO public.contacts (name, phone_number, department, stage)

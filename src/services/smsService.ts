@@ -97,7 +97,13 @@ export function renderPersonalizedMessage(template: string, contact: Contact): s
 export async function sendBulkSMS(
   contacts: Contact[],
   message: string,
-  onProgress?: (progressPercent: number) => void
+  onProgress?: (progressPercent: number) => void,
+  options?: {
+    gateway?: string;
+    senderId?: string;
+    iraqSmsApiKey?: string;
+    commpeakApiKey?: string;
+  }
 ): Promise<SMSBatchResult> {
   if (!contacts || contacts.length === 0) {
     throw new Error('No recipients selected for SMS broadcast.');
@@ -131,6 +137,10 @@ export async function sendBulkSMS(
           stage: c.stage,
         })),
         message,
+        gateway: options?.gateway,
+        senderId: options?.senderId,
+        iraqSmsApiKey: options?.iraqSmsApiKey,
+        commpeakApiKey: options?.commpeakApiKey,
       }),
     });
 
@@ -143,6 +153,8 @@ export async function sendBulkSMS(
       throw new Error(data.error || `Server rejected transmission (${response.status})`);
     }
 
+    const gatewayUsed = data.gateway || data.gateway_used || options?.gateway || 'Primary (Iraq SMS)';
+
     const result: SMSBatchResult = {
       batchId: data.batchId,
       status: data.status || 'delivered',
@@ -152,6 +164,8 @@ export async function sendBulkSMS(
       failedCount: data.failedCount || 0,
       messagePreview: message,
       sentAt: data.sentAt || new Date().toISOString(),
+      gatewayUsed,
+      gateway_used: gatewayUsed,
       recipients: contacts.map((c) => ({
         id: c.id,
         name: c.name,
@@ -160,9 +174,9 @@ export async function sendBulkSMS(
         stage: c.stage,
       })),
       providerDetails: {
-        providerName: data.providerName || 'TIUS Dispatcher',
+        providerName: data.provider || data.providerName || 'TIUS Dispatcher',
         latencyMs: data.latencyMs || 2000,
-        simulated: Boolean(data.isSimulated),
+        simulated: Boolean(data.isSimulated || data.results?.[0]?.response?.simulated),
         endpointPlaceholder: '/api/send-sms',
       },
     };

@@ -64,6 +64,8 @@ export interface SMSBatchResult {
     simulated: boolean;
     endpointPlaceholder: string;
   };
+  gatewayUsed?: string;
+  gateway_used?: string;
 }
 
 export interface ToastNotification {
@@ -73,4 +75,15 @@ export interface ToastNotification {
   message?: string;
   timestamp?: number;
   duration?: number;
+}
+
+export type DeliveryGateway = 'iraq_sms' | 'commpeak';
+
+export interface AppSettings {
+  defaultSenderId: string;
+  defaultGateway: DeliveryGateway;
+  iraqSmsApiKey: string;
+  commpeakApiKey: string;
+  iraqSmsApiUrl?: string;
+  commpeakApiUrl?: string;
 }

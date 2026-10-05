@@ -18,6 +18,61 @@ interface SendSMSRequestBody {
   message: string;
   batchId?: string;
   skipCampaignLog?: boolean;
+  gateway?: string;
+  provider?: string;
+  senderId?: string;
+  iraqSmsApiKey?: string;
+  commpeakApiKey?: string;
+}
+
+export type GatewayId = 'iraq_sms' | 'commpeak';
+
+interface GatewayConfig {
+  id: GatewayId;
+  displayName: string;
+  providerName: string;
+  apiUrl: string;
+  apiKey: string | undefined;
+  senderId: string;
+}
+
+/**
+ * Resolves configuration for the selected gateway.
+ * Checks request body keys first (from user Settings), then env vars.
+ */
+function resolveGatewayConfig(body: SendSMSRequestBody): GatewayConfig {
+  const requested = (body.gateway || body.provider || '').toLowerCase().trim();
+  const isCommPeak = requested.includes('commpeak') || requested === 'secondary';
+
+  const defaultSenderId = (body.senderId || '').trim().slice(0, 11);
+
+  if (isCommPeak) {
+    const key = body.commpeakApiKey || process.env.COMMPEAK_API_KEY;
+    let apiUrl = process.env.COMMPEAK_API_URL || 'https://gw.commpeak.com/textpeak/streams/simple_send';
+    if (apiUrl.includes('commpeak.com/textpeak') && !apiUrl.includes('/streams/')) {
+      apiUrl = apiUrl.replace(/\/+$/, '') + '/streams/simple_send';
+    }
+
+    return {
+      id: 'commpeak',
+      displayName: 'Secondary (CommPeak)',
+      providerName: 'CommPeak SMS Gateway',
+      apiUrl,
+      apiKey: key,
+      senderId: defaultSenderId || process.env.COMMPEAK_SENDER_ID || '',
+    };
+  }
+
+  // Default: Primary (Iraq SMS / Standing Tech v4)
+  const key = body.iraqSmsApiKey || process.env.IRAQSMS_API_KEY || process.env.SMS_API_KEY;
+  return {
+    id: 'iraq_sms',
+    displayName: 'Primary (Iraq SMS)',
+    providerName: 'Standing Tech (Bulk SMS Iraq v4)',
+    apiUrl: process.env.IRAQSMS_API_URL || process.env.SMS_API_URL || 'https://gateway.standingtech.com/api/v4/sms/send',
+    apiKey: key,
+    senderId: defaultSenderId || process.env.IRAQSMS_SENDER_ID || process.env.SMS_SENDER_ID || 'TIUSuli',
+  };
 }
 
 /**
@@ -26,25 +81,20 @@ interface SendSMSRequestBody {
  */
 function formatIraqNumber(phone: string): string {
   if (!phone) return '';
-  // Convert Arabic-Indic numerals (٠-٩) to standard digits (0-9)
   const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
   let clean = String(phone)
     .replace(/[٠-٩]/g, (d) => arabicDigits.indexOf(d).toString())
     .replace(/[^0-9]/g, '');
 
-  // Strip international double-zero if present: 009647... -> 9647...
   if (clean.startsWith('00964')) {
     clean = clean.substring(2);
   }
 
-  // If local format starting with 07... (11 digits), drop leading 0 and prepend 964 -> 9647...
   if (clean.startsWith('07') && clean.length === 11) {
     clean = '964' + clean.substring(1);
   } else if (clean.startsWith('7') && clean.length === 10) {
-    // Local format without leading 0 (7XXXXXXXXX) -> prepend 964 -> 9647...
     clean = '964' + clean;
   } else if (clean.startsWith('96407') && clean.length === 14) {
-    // Erroneous double-zero/code (96407...) -> 9647...
     clean = '964' + clean.substring(4);
   }
 
@@ -52,7 +102,7 @@ function formatIraqNumber(phone: string): string {
 }
 
 /**
- * Replace personalization tokens like {Name}, {StudentID}, {Department}, {Stage}
+ * Personalize template with recipient data
  */
 function personalize(template: string, item: RecipientItem): string {
   if (typeof item === 'string') return template;
@@ -87,11 +137,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Live Provider Configuration from .env.local (Server-Side only, never exposed to browser)
-    const SMS_API_URL = process.env.SMS_API_URL || 'https://gateway.standingtech.com/api/v4/sms/send';
-    const SMS_API_KEY = process.env.SMS_API_KEY;
-    const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'TIUSuli';
-
+    const gatewayConfig = resolveGatewayConfig(body);
     const batchId =
       body.batchId ||
       `TIU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -109,12 +155,18 @@ export async function POST(request: NextRequest) {
       status?: number;
       response?: unknown;
       error?: string;
+      gatewayUsed?: string;
     }> = [];
 
     let deliveredCount = 0;
     let failedCount = 0;
 
-    // Loop through each recipient and dispatch to Standing Tech v4 endpoint
+    const isApiKeyMissingOrPlaceholder =
+      !gatewayConfig.apiKey ||
+      gatewayConfig.apiKey.includes('your_live_api_key') ||
+      gatewayConfig.apiKey.includes('your-api-key') ||
+      gatewayConfig.apiKey.includes('placeholder');
+
     for (const item of recipients) {
       const rawPhone = typeof item === 'string' ? item : item.phoneNumber || item.phone || '';
       const formattedNumber = formatIraqNumber(rawPhone);
@@ -137,14 +189,14 @@ export async function POST(request: NextRequest) {
           originalPhone: rawPhone,
           success: false,
           error: 'Empty or invalid phone number',
+          gatewayUsed: gatewayConfig.displayName,
         });
         continue;
       }
 
-      // Check if live API key is configured
-      if (!SMS_API_KEY || SMS_API_KEY.includes('your_live_api_key')) {
-        // Safe simulation fallback if keys are missing
-        await new Promise((r) => setTimeout(r, 150));
+      // Simulation mode if key is missing
+      if (isApiKeyMissingOrPlaceholder) {
+        await new Promise((r) => setTimeout(r, 60));
         deliveredCount++;
         results.push({
           id,
@@ -155,65 +207,160 @@ export async function POST(request: NextRequest) {
           recipient: formattedNumber,
           originalPhone: rawPhone,
           success: true,
-          response: { simulated: true, note: 'Simulation mode (SMS_API_KEY not configured)' },
+          response: {
+            simulated: true,
+            gateway: gatewayConfig.displayName,
+            senderId: gatewayConfig.senderId,
+            note: `Simulated dispatch via ${gatewayConfig.displayName}`,
+          },
+          gatewayUsed: gatewayConfig.displayName,
         });
         continue;
       }
 
+      // Live Gateway Dispatch using Strategy / Switch Pattern
       try {
-        // Payload required by Standing Tech API v4
-        const payload = {
-          recipient: formattedNumber,
-          sender_id: SMS_SENDER_ID,
-          type: 'plain',
-          message: personalizedMessage,
-          lang: 'en',
-        };
+        let responseStatus = 200;
+        let responseData: unknown = null;
 
-        const providerResponse = await fetch(SMS_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${SMS_API_KEY}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        switch (gatewayConfig.id) {
+          case 'commpeak': {
+            // CommPeak TextPeak Messaging API (gw.commpeak.com/textpeak/streams/simple_send)
+            const isTextPeak = gatewayConfig.apiUrl.includes('textpeak');
+            const authHeader = gatewayConfig.apiKey?.startsWith('Bearer ')
+              ? gatewayConfig.apiKey
+              : `${gatewayConfig.apiKey}`;
 
-        const resData = await providerResponse.json().catch(() => null);
+            const executeCommPeakCall = async (withSender: boolean) => {
+              let payload: Record<string, unknown>;
 
-        if (providerResponse.ok) {
-          deliveredCount++;
-          results.push({
-            id,
-            name,
-            department,
-            stage,
-            studentId,
-            recipient: formattedNumber,
-            originalPhone: rawPhone,
-            success: true,
-            status: providerResponse.status,
-            response: resData,
-          });
-        } else {
-          failedCount++;
-          results.push({
-            id,
-            name,
-            department,
-            stage,
-            studentId,
-            recipient: formattedNumber,
-            originalPhone: rawPhone,
-            success: false,
-            status: providerResponse.status,
-            error: resData ? JSON.stringify(resData) : `HTTP ${providerResponse.status}`,
-          });
+              if (isTextPeak) {
+                const msgObj: Record<string, string> = {
+                  recipient_phone: formattedNumber,
+                  message_content: personalizedMessage,
+                };
+                if (withSender && gatewayConfig.senderId && gatewayConfig.senderId.trim().length > 0) {
+                  msgObj.sender = gatewayConfig.senderId.trim();
+                }
+                payload = { messages: [msgObj] };
+              } else {
+                payload = {
+                  recipient: formattedNumber,
+                  message: personalizedMessage,
+                  ...(withSender && gatewayConfig.senderId ? { sender: gatewayConfig.senderId } : {}),
+                };
+              }
+
+              const res = await fetch(gatewayConfig.apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': authHeader,
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: JSON.stringify(payload),
+              });
+
+              let json: Record<string, unknown> | string | null = null;
+              try {
+                json = await res.json();
+              } catch {
+                json = await res.text();
+              }
+              return { res, json };
+            };
+
+            const hasSender = Boolean(gatewayConfig.senderId && gatewayConfig.senderId.trim().length > 0);
+            let { res, json } = await executeCommPeakCall(hasSender);
+
+            // If CommPeak rejects the custom sender (e.g. sender is not an approved originator in CommPeak portal),
+            // automatically retry once using the account's registered default stream sender
+            if (
+              hasSender &&
+              json &&
+              (JSON.stringify(json).includes('is not allowed sender') || (typeof json === 'object' && json !== null && 'status' in json && (json as { status: boolean }).status === false))
+            ) {
+              console.log('[CommPeak] Custom sender rejected or unapproved, retrying with stream default sender...');
+              const retry = await executeCommPeakCall(false);
+              res = retry.res;
+              json = retry.json;
+            }
+
+            responseStatus = res.status;
+            responseData = json;
+
+            const isCommPeakSuccess =
+              res.ok &&
+              (typeof json !== 'object' ||
+                json === null ||
+                !('status' in json) ||
+                (json as { status: boolean }).status !== false);
+
+            if (!isCommPeakSuccess) {
+              const details =
+                (typeof json === 'object' &&
+                  json !== null &&
+                  'messages' in json &&
+                  Array.isArray((json as { messages?: Array<{ details?: string }> }).messages) &&
+                  (json as { messages: Array<{ details?: string }> }).messages[0]?.details) ||
+                JSON.stringify(responseData);
+              throw new Error(`CommPeak error (${res.status}): ${details}`);
+            }
+            break;
+          }
+
+          case 'iraq_sms':
+          default: {
+            // Standing Tech Bulk SMS Iraq v4
+            const iraqSmsPayload = {
+              recipient: formattedNumber,
+              sender_id: gatewayConfig.senderId,
+              type: 'plain',
+              message: personalizedMessage,
+            };
+
+            const res = await fetch(gatewayConfig.apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${gatewayConfig.apiKey}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify(iraqSmsPayload),
+            });
+
+            responseStatus = res.status;
+            try {
+              responseData = await res.json();
+            } catch {
+              responseData = await res.text();
+            }
+
+            if (!res.ok) {
+              throw new Error(`Iraq SMS error (${res.status}): ${JSON.stringify(responseData)}`);
+            }
+            break;
+          }
         }
-      } catch (err: unknown) {
+
+        deliveredCount++;
+        results.push({
+          id,
+          name,
+          department,
+          stage,
+          studentId,
+          recipient: formattedNumber,
+          originalPhone: rawPhone,
+          success: true,
+          status: responseStatus,
+          response: responseData,
+          gatewayUsed: gatewayConfig.displayName,
+        });
+      } catch (sendErr: unknown) {
         failedCount++;
-        const errMsg = err instanceof Error ? err.message : String(err);
+        const errorMessage = sendErr instanceof Error ? sendErr.message : 'Gateway request failed';
+        console.error(`[${gatewayConfig.displayName}] Delivery error:`, errorMessage);
         results.push({
           id,
           name,
@@ -223,69 +370,86 @@ export async function POST(request: NextRequest) {
           recipient: formattedNumber,
           originalPhone: rawPhone,
           success: false,
-          error: errMsg,
+          error: errorMessage,
+          gatewayUsed: gatewayConfig.displayName,
         });
       }
     }
 
-    const durationMs = Date.now() - startTime;
+    const latencyMs = Date.now() - startTime;
+    const isOverallSuccess = failedCount === 0;
+    const status = isOverallSuccess
+      ? 'delivered'
+      : deliveredCount > 0
+      ? 'partially_delivered'
+      : 'failed';
 
-    // Persist campaign record to Supabase (skipped during client-side throttled loop to avoid duplicate records)
+    // Log to Supabase campaign_history with gateway_used
     if (!skipCampaignLog) {
       try {
         const supabase = await createClient();
+        const recipientSnapshot = recipients.map((r, i) => {
+          if (typeof r === 'string') {
+            return {
+              id: `recip-${i}`,
+              name: `Recipient ${i + 1}`,
+              phoneNumber: r,
+              department: 'General',
+              stage: 'Stage 1',
+            };
+          }
+          return {
+            id: r.id || `recip-${i}`,
+            name: r.name || `Recipient ${i + 1}`,
+            phoneNumber: r.phoneNumber || r.phone || '',
+            department: r.department || 'General',
+            stage: r.stage || 'Stage 1',
+          };
+        });
+
         await supabase.from('campaign_history').insert({
           batch_id: batchId,
-          status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
+          status,
           recipient_count: recipients.length,
-          total_segments: recipients.length,
+          total_segments: Math.ceil(message.length / 160) * recipients.length,
           delivered_count: deliveredCount,
           failed_count: failedCount,
-          message_preview: message.length > 90 ? `${message.substring(0, 87)}...` : message,
-          sent_at: new Date().toISOString(),
-          recipients: results.map((r) => ({
-            id: r.id,
-            name: r.name,
-            department: r.department,
-            stage: r.stage,
-            studentId: r.studentId,
-            phoneNumber: r.recipient,
-            originalPhone: r.originalPhone,
-            success: r.success,
-            error: r.error,
-          })),
+          message_preview: message.slice(0, 160),
+          recipients: recipientSnapshot,
           provider_details: {
-            providerName: 'Standing Tech (Bulk SMS Iraq v4)',
-            senderId: SMS_SENDER_ID,
-            endpoint: SMS_API_URL,
-            latencyMs: durationMs,
+            providerName: gatewayConfig.providerName,
+            latencyMs,
+            simulated: isApiKeyMissingOrPlaceholder,
+            endpoint: gatewayConfig.apiUrl,
+            gateway: gatewayConfig.displayName,
           },
+          gateway_used: gatewayConfig.displayName,
+          sent_at: new Date().toISOString(),
         });
       } catch (dbErr) {
-        console.warn('Supabase campaign logging notice:', dbErr);
+        console.warn('Could not write campaign log to Supabase:', dbErr);
       }
     }
 
     return NextResponse.json({
-      success: deliveredCount > 0,
+      success: true,
       batchId,
-      status: deliveredCount > 0 ? (failedCount === 0 ? 'delivered' : 'partially_delivered') : 'failed',
+      status,
       recipientCount: recipients.length,
       deliveredCount,
       failedCount,
-      latencyMs: durationMs,
-      senderId: SMS_SENDER_ID,
-      provider: 'Standing Tech (Bulk SMS Iraq v4)',
+      latencyMs,
+      senderId: gatewayConfig.senderId,
+      provider: gatewayConfig.providerName,
+      gateway: gatewayConfig.displayName,
+      gateway_used: gatewayConfig.displayName,
       sentAt: new Date().toISOString(),
       results,
-      message:
-        failedCount === 0
-          ? `Successfully sent ${deliveredCount} SMS via ${SMS_SENDER_ID}.`
-          : `Dispatched ${deliveredCount} of ${recipients.length} messages (${failedCount} failed).`,
+      message: `Successfully processed ${deliveredCount} of ${recipients.length} SMS via ${gatewayConfig.displayName} (${gatewayConfig.senderId}).`,
     });
-  } catch (error: unknown) {
-    console.error('Error in /api/send-sms:', error);
-    const msg = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Internal Server Error';
+    console.error('Unhandled error in /api/send-sms:', err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

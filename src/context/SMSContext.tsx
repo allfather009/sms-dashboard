@@ -1,11 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
-import { Student, Contact, FilterState, SMSBatchResult, ToastNotification, TargetingMode } from '@/types';
-import { 
-  fetchStudentsFromSupabase, 
-  insertStudentToSupabase, 
-  updateStudentInSupabase, 
+import { Student, Contact, FilterState, SMSBatchResult, ToastNotification, TargetingMode, AppSettings, DeliveryGateway } from '@/types';
+import {
+  fetchStudentsFromSupabase,
+  insertStudentToSupabase,
+  updateStudentInSupabase,
   deleteStudentFromSupabase,
   bulkDeleteStudentsFromSupabase,
   bulkUpdateStudentsInSupabase,
@@ -13,6 +13,7 @@ import {
 } from '@/services/studentService';
 import { fetchCampaignsFromSupabase, saveCampaignToSupabase } from '@/services/campaignService';
 import { fetchDepartmentsFromSupabase, DEFAULT_TIU_DEPARTMENTS } from '@/services/departmentService';
+import { getLocalSettings, persistSettings, syncRemoteSettings } from '@/services/settingsService';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 import { VALID_STAGES, normalizeStage } from '@/utils/fileParser';
@@ -64,6 +65,12 @@ interface SMSContextType {
   toast: ToastNotification | null;
   campaignHistory: SMSBatchResult[];
   activeTab: 'students' | 'contacts' | 'upload' | 'campaigns' | 'settings';
+
+  // App Settings & Multi-Gateway Routing
+  settings: AppSettings;
+  updateSettings: (newSettings: Partial<AppSettings>) => Promise<AppSettings>;
+  selectedGateway: DeliveryGateway;
+  setSelectedGateway: (gateway: DeliveryGateway) => void;
 
   // Backwards compatibility aliases
   contacts: Contact[];
@@ -166,6 +173,36 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toast, setToast] = useState<ToastNotification | null>(null);
   const [campaignHistory, setCampaignHistory] = useState<SMSBatchResult[]>([]);
   const [activeTab, setActiveTab] = useState<'students' | 'contacts' | 'upload' | 'campaigns' | 'settings'>('students');
+
+  // App Settings & Multi-Provider Gateway State
+  const [settings, setSettings] = useState<AppSettings>(() => getLocalSettings());
+  const [selectedGateway, setSelectedGateway] = useState<DeliveryGateway>(() => {
+    return getLocalSettings().defaultGateway || 'iraq_sms';
+  });
+
+  useEffect(() => {
+    syncRemoteSettings().then((remote) => {
+      setSettings(remote);
+      if (remote.defaultGateway) {
+        setSelectedGateway((prev) => (prev ? prev : remote.defaultGateway));
+      }
+    });
+  }, []);
+
+  const updateSettings = useCallback(async (newSettings: Partial<AppSettings>) => {
+    const merged: AppSettings = {
+      ...settings,
+      ...newSettings,
+      defaultSenderId: (newSettings.defaultSenderId !== undefined ? newSettings.defaultSenderId : settings.defaultSenderId).slice(0, 11),
+      defaultGateway: newSettings.defaultGateway || settings.defaultGateway,
+    };
+    const saved = await persistSettings(merged);
+    setSettings(saved);
+    if (newSettings.defaultGateway) {
+      setSelectedGateway(newSettings.defaultGateway);
+    }
+    return saved;
+  }, [settings]);
 
   // Prevent user from accidentally closing or refreshing tab during bulk broadcast
   useEffect(() => {
@@ -300,10 +337,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const standardPhone = rawDigits.startsWith('00964')
         ? rawDigits.substring(2)
         : rawDigits.startsWith('07')
-        ? '964' + rawDigits.substring(1)
-        : rawDigits.startsWith('7') && rawDigits.length === 10
-        ? '964' + rawDigits
-        : rawDigits;
+          ? '964' + rawDigits.substring(1)
+          : rawDigits.startsWith('7') && rawDigits.length === 10
+            ? '964' + rawDigits
+            : rawDigits;
 
       const matchesCarrier = (() => {
         if (!filters.carrier || filters.carrier === 'All') return true;
@@ -692,6 +729,10 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               message: composerMessage,
               batchId,
               skipCampaignLog: true,
+              gateway: selectedGateway,
+              senderId: settings.defaultSenderId,
+              iraqSmsApiKey: settings.iraqSmsApiKey,
+              commpeakApiKey: settings.commpeakApiKey,
             }),
           });
 
@@ -741,6 +782,11 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSendProgress(percent);
       }
 
+      const gatewayUsed =
+        selectedGateway === 'commpeak'
+          ? 'Secondary (CommPeak)'
+          : 'Primary (Iraq SMS)';
+
       const totalSegments = normalizedRecipients.length;
       const batchResult: SMSBatchResult = {
         batchId,
@@ -751,6 +797,8 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         failedCount,
         messagePreview: composerMessage.substring(0, 80),
         sentAt: new Date().toISOString(),
+        gatewayUsed,
+        gateway_used: gatewayUsed,
         recipients: results.map((r, idx) => ({
           id: r.id || `${batchId}-r-${idx}`,
           name: r.name || r.phoneNumber || `Recipient ${idx + 1}`,
@@ -759,10 +807,16 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           stage: r.stage || '',
         })),
         providerDetails: {
-          providerName: 'Standing Tech (Bulk SMS Iraq v4 - Throttled)',
+          providerName:
+            selectedGateway === 'commpeak'
+              ? 'CommPeak SMS Gateway (Throttled)'
+              : 'Standing Tech (Bulk SMS Iraq v4 - Throttled)',
           latencyMs: Date.now() - startTime,
           simulated: false,
-          endpointPlaceholder: 'Live Carrier Gateway (5s Rate Limited)',
+          endpointPlaceholder:
+            selectedGateway === 'commpeak'
+              ? 'CommPeak Carrier Gateway'
+              : 'Bulk SMS Iraq Gateway (5s Rate Limited)',
         },
       };
 
@@ -802,7 +856,7 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSendingTotal(0);
       setSendingStudentName('');
     }
-  }, [resolvedRecipients, composerMessage, showToast]);
+  }, [resolvedRecipients, composerMessage, selectedGateway, settings, showToast]);
 
   // Backwards compatibility mappings
   const contacts: Contact[] = useMemo(() => students.map(mapStudentToContact), [students]);
@@ -851,6 +905,12 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toast,
         campaignHistory,
         activeTab,
+
+        // Settings & Delivery Gateway routing
+        settings,
+        updateSettings,
+        selectedGateway,
+        setSelectedGateway,
 
         // Backwards compatibility
         contacts,

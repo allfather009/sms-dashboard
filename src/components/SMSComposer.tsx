@@ -6,13 +6,13 @@ import { analyzeSMSContent } from '@/utils/smsAnalyzer';
 import { fetchTemplatesFromSupabase, FALLBACK_TEMPLATES } from '@/services/templateService';
 import { SMSTemplate, TargetingMode } from '@/types';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
-import { 
-  X, 
-  Send, 
-  Smartphone, 
-  Users, 
-  AlertCircle, 
-  FileText, 
+import {
+  X,
+  Send,
+  Smartphone,
+  Users,
+  AlertCircle,
+  FileText,
   Loader2,
   Building2,
   Layers,
@@ -20,9 +20,11 @@ import {
   Filter,
   Check,
   Globe,
-  AlertTriangle
+  AlertTriangle,
+  Radio
 } from 'lucide-react';
 import { CustomDropdown } from './CustomDropdown';
+import { DeliveryGateway } from '@/types';
 
 export const SMSComposer: React.FC = () => {
   const {
@@ -51,6 +53,9 @@ export const SMSComposer: React.FC = () => {
     sendingCurrent,
     sendingTotal,
     sendingStudentName,
+    selectedGateway,
+    setSelectedGateway,
+    settings,
   } = useSMS();
 
   // Dynamic estimated remaining time for throttled 5-second broadcasts
@@ -226,11 +231,10 @@ export const SMSComposer: React.FC = () => {
                     key={id}
                     type="button"
                     onClick={() => setTargetingMode(id as TargetingMode)}
-                    className={`py-1.5 px-2 text-xs font-medium rounded-xl transition-all duration-150 ease-in-out active:scale-[0.97] cursor-pointer text-center ${
-                      isActive
+                    className={`py-1.5 px-2 text-xs font-medium rounded-xl transition-all duration-150 ease-in-out active:scale-[0.97] cursor-pointer text-center ${isActive
                         ? 'bg-white text-zinc-900 shadow-xs font-semibold'
                         : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/50'
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>
@@ -261,11 +265,10 @@ export const SMSComposer: React.FC = () => {
                         key={dept}
                         type="button"
                         onClick={() => toggleTargetDepartment(dept)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all ${
-                          isDeptSelected
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all ${isDeptSelected
                             ? 'bg-[#0071e3] text-white border-transparent shadow-xs'
                             : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                        }`}
+                          }`}
                       >
                         {isDeptSelected && <Check className="w-3 h-3" />}
                         <span>{dept}</span>
@@ -293,11 +296,10 @@ export const SMSComposer: React.FC = () => {
                         key={stg}
                         type="button"
                         onClick={() => setTargetStage(stg)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                          isStgSelected
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${isStgSelected
                             ? 'bg-[#0071e3] text-white border-transparent shadow-xs'
                             : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                        }`}
+                          }`}
                       >
                         {isStgSelected && <Check className="w-3 h-3" />}
                         <span>{stg}</span>
@@ -439,6 +441,31 @@ export const SMSComposer: React.FC = () => {
             </div>
           </div>
 
+          {/* Gateway Routing Selector - Required Field directly above message content */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <label className="font-semibold text-zinc-800 flex items-center gap-1.5">
+                <Radio className="w-3.5 h-3.5 text-[#0071e3]" />
+                <span>Select Delivery Gateway</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
+              <span className="text-[11px] text-zinc-400">
+                Sender ID: <strong className="font-mono text-zinc-700">{settings.defaultSenderId || 'TIUSuli'}</strong>
+              </span>
+            </div>
+            <CustomDropdown
+              value={selectedGateway}
+              onChange={(val) => setSelectedGateway(val as DeliveryGateway)}
+              placeholder="Select Delivery Gateway"
+              options={[
+                { value: 'iraq_sms', label: 'Primary (Iraq SMS)' },
+                { value: 'commpeak', label: 'Secondary (CommPeak)' },
+              ]}
+              className="w-full"
+              buttonClassName="w-full py-2 bg-white text-xs border-zinc-200"
+            />
+          </div>
+
           {/* Message Textarea & Dynamic Cost Calculator */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
@@ -470,35 +497,32 @@ export const SMSComposer: React.FC = () => {
 
             {/* Smart Character & Cost Calculator */}
             <div
-              className={`p-3 rounded-2xl border transition-all duration-300 space-y-2 ${
-                smsAnalysis.statusColor === 'danger'
+              className={`p-3 rounded-2xl border transition-all duration-300 space-y-2 ${smsAnalysis.statusColor === 'danger'
                   ? 'bg-rose-50/70 border-rose-200 text-rose-900 shadow-xs'
                   : smsAnalysis.statusColor === 'warning'
-                  ? 'bg-amber-50/70 border-amber-200 text-amber-900 shadow-xs'
-                  : 'bg-zinc-50/80 border-zinc-200/80 text-zinc-700'
-              }`}
+                    ? 'bg-amber-50/70 border-amber-200 text-amber-900 shadow-xs'
+                    : 'bg-zinc-50/80 border-zinc-200/80 text-zinc-700'
+                }`}
             >
               {/* Primary Live Counter Line with dynamic color transitions */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                      smsAnalysis.statusColor === 'danger'
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${smsAnalysis.statusColor === 'danger'
                         ? 'bg-rose-500 animate-pulse'
                         : smsAnalysis.statusColor === 'warning'
-                        ? 'bg-amber-500 animate-pulse'
-                        : 'bg-zinc-400'
-                    }`}
+                          ? 'bg-amber-500 animate-pulse'
+                          : 'bg-zinc-400'
+                      }`}
                   />
                   <span
                     id="sms-cost-counter"
-                    className={`text-xs font-semibold tracking-tight transition-colors ${
-                      smsAnalysis.statusColor === 'danger'
+                    className={`text-xs font-semibold tracking-tight transition-colors ${smsAnalysis.statusColor === 'danger'
                         ? 'text-rose-700 font-bold'
                         : smsAnalysis.statusColor === 'warning'
-                        ? 'text-amber-700 font-bold'
-                        : 'text-zinc-600 font-medium'
-                    }`}
+                          ? 'text-amber-700 font-bold'
+                          : 'text-zinc-600 font-medium'
+                      }`}
                   >
                     {smsAnalysis.displayText}
                   </span>
@@ -506,11 +530,10 @@ export const SMSComposer: React.FC = () => {
 
                 {/* Encoding & Standard Badge */}
                 <div
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                    isUnicode
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${isUnicode
                       ? 'bg-purple-100/70 text-purple-800 border-purple-200'
                       : 'bg-white text-zinc-600 border-zinc-200'
-                  }`}
+                    }`}
                 >
                   <Globe className="w-3 h-3" />
                   <span>{isUnicode ? 'Unicode (70 limit)' : 'GSM-7 (160 limit)'}</span>
@@ -524,8 +547,8 @@ export const SMSComposer: React.FC = () => {
                     smsAnalysis.statusColor === 'danger'
                       ? 'text-rose-700 font-medium'
                       : smsAnalysis.statusColor === 'warning'
-                      ? 'text-amber-700 font-medium'
-                      : 'text-zinc-500'
+                        ? 'text-amber-700 font-medium'
+                        : 'text-zinc-500'
                   }
                 >
                   {remainingInSegment} char{remainingInSegment !== 1 ? 's' : ''} left in current segment

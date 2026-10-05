@@ -28,6 +28,7 @@ export interface DatabaseCampaignRow {
     simulated: boolean;
     endpointPlaceholder: string;
   };
+  gateway_used?: string;
   created_at: string;
 }
 
@@ -42,6 +43,8 @@ export function mapRowToCampaign(row: DatabaseCampaignRow): SMSBatchResult {
     failedCount: row.failed_count,
     messagePreview: row.message_preview,
     sentAt: row.sent_at,
+    gatewayUsed: row.gateway_used || 'Primary (Iraq SMS)',
+    gateway_used: row.gateway_used || 'Primary (Iraq SMS)',
     recipients: (row.recipients || []).map((r, idx) => ({
       id: r.id || `${batchId}-r-${idx}-${r.phoneNumber || r.originalPhone || ''}`,
       name: r.name || r.phoneNumber || r.originalPhone || `Recipient ${idx + 1}`,
@@ -126,6 +129,7 @@ export async function saveCampaignToSupabase(batch: SMSBatchResult): Promise<{
       sent_at: batch.sentAt,
       recipients: batch.recipients,
       provider_details: batch.providerDetails,
+      gateway_used: batch.gatewayUsed || batch.gateway_used || 'Primary (Iraq SMS)',
     };
 
     const { error } = await supabase.from('campaign_history').insert(row);

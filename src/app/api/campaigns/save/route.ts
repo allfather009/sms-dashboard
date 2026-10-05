@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       sent_at: batch.sentAt,
       recipients: batch.recipients,
       provider_details: batch.providerDetails,
+      gateway_used: batch.gatewayUsed || batch.gateway_used || 'Primary (Iraq SMS)',
     };
 
     const { error } = await supabase.from('campaign_history').insert(row);

@@ -160,8 +160,8 @@ export const UploadZone: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Upload Card */}
-      <div className="apple-glass-card rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden border border-black/[0.06] shadow-sm">
-        <div className="max-w-xl mx-auto flex flex-col items-center">
+      <div className="apple-glass-card rounded-2xl p-6 sm:p-10 text-center relative z-20 border border-black/[0.06] shadow-sm">
+        <div className="w-full flex flex-col items-center">
           {/* Header */}
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0071e3] flex items-center justify-center mb-3.5 shadow-xs border border-blue-200/50">
             <GraduationCap className="w-6 h-6" />
@@ -217,10 +217,10 @@ export const UploadZone: React.FC = () => {
           </div>
 
           {/* Import options & controls */}
-          <div className="mt-6 flex flex-col md:flex-row items-center justify-center gap-3 text-xs w-full max-w-2xl flex-wrap">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-xs w-full">
             {/* Academic Stage Mapping Tool */}
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-zinc-600 whitespace-nowrap text-[11px]">
+              <span className="font-semibold text-zinc-600 whitespace-nowrap text-xs">
                 Stage:
               </span>
               <CustomDropdown
@@ -229,14 +229,13 @@ export const UploadZone: React.FC = () => {
                 options={stageOptions}
                 value={stageMappingOption}
                 onChange={setStageMappingOption}
-                className="w-full sm:w-auto"
                 panelClassName="w-[250px]"
               />
             </div>
 
             {/* Department Mapping Tool (Directly next to Stage Mapping) */}
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-zinc-600 whitespace-nowrap text-[11px]">
+              <span className="font-semibold text-zinc-600 whitespace-nowrap text-xs">
                 Department:
               </span>
               <CustomDropdown
@@ -245,7 +244,6 @@ export const UploadZone: React.FC = () => {
                 options={departmentOptions}
                 value={departmentMappingOption}
                 onChange={setDepartmentMappingOption}
-                className="w-full sm:w-auto"
                 panelClassName="w-[280px]"
               />
             </div>
@@ -258,7 +256,7 @@ export const UploadZone: React.FC = () => {
                 onChange={(e) => setAppendMode(e.target.checked)}
                 className="rounded text-[#0071e3] focus:ring-[#0071e3] w-3.5 h-3.5 cursor-pointer"
               />
-              <span className="text-[11px] font-medium">Append ({students.length} loaded)</span>
+              <span className="text-xs font-medium whitespace-nowrap">Append ({students.length} loaded)</span>
             </label>
           </div>
 

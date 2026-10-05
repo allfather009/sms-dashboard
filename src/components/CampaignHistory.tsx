@@ -1,39 +1,33 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSMS } from '@/context/SMSContext';
-import { 
-  History, 
-  CheckCircle2, 
-  Clock, 
-  Users, 
-  Layers, 
-  Send
+import {
+  History,
+  CheckCircle2,
+  Clock,
+  Users,
+  Layers,
+  Send,
+  Radio
 } from 'lucide-react';
+import { SMSBatchResult } from '@/types';
+import { CampaignRecipientsModal } from './CampaignRecipientsModal';
 
 export const CampaignHistory: React.FC = () => {
   const { campaignHistory, setIsComposerOpen, setActiveTab } = useSMS();
+  const [selectedBatchForModal, setSelectedBatchForModal] = useState<SMSBatchResult | null>(null);
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
       {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Campaign Activity & Audit Log
-          </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Real-time delivery receipts and performance metrics from the simulated SMS provider.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsComposerOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-[#0071e3] text-white hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-xs self-start sm:self-auto"
-        >
-          <Send className="w-3.5 h-3.5" />
-          <span>New SMS Broadcast</span>
-        </button>
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+          Campaign Activity & Audit Log
+        </h2>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          Real-time delivery receipts, gateway routing, and billing company audit records.
+        </p>
       </div>
 
       {campaignHistory.length === 0 ? (
@@ -64,6 +58,9 @@ export const CampaignHistory: React.FC = () => {
         <div className="space-y-4">
           {campaignHistory.map((batch, batchIdx) => {
             const batchKey = batch.batchId || `batch-${batchIdx}`;
+            const gatewayName = batch.gatewayUsed || batch.gateway_used || 'Primary (Iraq SMS)';
+            const isCommPeak = gatewayName.toLowerCase().includes('commpeak');
+
             return (
               <div
                 key={batchKey}
@@ -76,12 +73,23 @@ export const CampaignHistory: React.FC = () => {
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-zinc-900 text-sm">
                           Batch {batch.batchId}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           100% Delivered
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            isCommPeak
+                              ? 'bg-violet-50 text-violet-700 border-violet-200'
+                              : 'bg-blue-50 text-[#0071e3] border-blue-200'
+                          }`}
+                          title={`Billed & Dispatched via ${gatewayName}`}
+                        >
+                          <Radio className="w-2.5 h-2.5" />
+                          <span>{gatewayName}</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-0.5">
@@ -95,12 +103,17 @@ export const CampaignHistory: React.FC = () => {
 
                   {/* Metrics Badges */}
                   <div className="flex items-center gap-3 text-xs">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
-                      <Users className="w-3.5 h-3.5 text-zinc-500" />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBatchForModal(batch)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 hover:bg-blue-50 hover:text-[#0071e3] text-zinc-700 transition-all cursor-pointer group border border-transparent hover:border-blue-200/60"
+                      title="View full recipient audit list"
+                    >
+                      <Users className="w-3.5 h-3.5 text-zinc-500 group-hover:text-[#0071e3]" />
                       <span>
-                        <strong className="text-zinc-900">{batch.recipientCount}</strong> recipients
+                        <strong className="text-zinc-900 group-hover:text-[#0071e3]">{batch.recipientCount}</strong> recipients
                       </span>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100/80 text-zinc-700">
                       <Layers className="w-3.5 h-3.5 text-zinc-500" />
                       <span>
@@ -115,10 +128,10 @@ export const CampaignHistory: React.FC = () => {
                   {batch.messagePreview}
                 </div>
 
-                {/* Recipient sample pills */}
+                {/* Recipient sample pills & View All interactive button */}
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-                  <span className="text-[11px] font-medium mr-1">Recipients:</span>
-                  {batch.recipients.slice(0, 6).map((r, rIdx) => {
+                  <span className="text-[11px] font-semibold text-zinc-600 mr-1">Recipients:</span>
+                  {batch.recipients.slice(0, 5).map((r, rIdx) => {
                     const recipientKey = r.id || `${batchKey}-recip-${rIdx}-${r.phoneNumber || ''}`;
                     const displayName = r.name || r.phoneNumber || `Recipient ${rIdx + 1}`;
                     const deptInfo = r.department ? ` (${r.department})` : '';
@@ -131,17 +144,36 @@ export const CampaignHistory: React.FC = () => {
                       </span>
                     );
                   })}
-                  {batch.recipients.length > 6 && (
-                    <span className="text-[11px] text-zinc-400 font-medium">
-                      +{batch.recipients.length - 6} more
-                    </span>
-                  )}
+                  {batch.recipients.length > 5 ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBatchForModal(batch)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0071e3] hover:text-[#0077ed] hover:underline cursor-pointer transition-colors ml-1"
+                    >
+                      View all {batch.recipientCount || batch.recipients.length} recipients →
+                    </button>
+                  ) : batch.recipients.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBatchForModal(batch)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0071e3] hover:text-[#0077ed] hover:underline cursor-pointer transition-colors ml-1"
+                    >
+                      View list ({batch.recipients.length})
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Searchable Campaign Recipients Audit Modal */}
+      <CampaignRecipientsModal
+        batch={selectedBatchForModal}
+        isOpen={!!selectedBatchForModal}
+        onClose={() => setSelectedBatchForModal(null)}
+      />
     </div>
   );
 };
