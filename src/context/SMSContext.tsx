@@ -17,6 +17,7 @@ import { getLocalSettings, persistSettings, syncRemoteSettings } from '@/service
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { normalizeIraqPhoneNumber } from '@/utils/phoneUtils';
 import { VALID_STAGES, normalizeStage } from '@/utils/fileParser';
+import { chunkArray } from '@/lib/commpeak';
 
 interface SMSContextType {
   // Student state
@@ -671,10 +672,14 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSendingTotal(resolvedRecipients.length);
     setSendingStudentName('');
 
+    const isCommPeak = selectedGateway === 'commpeak';
+
     showToast({
       type: 'sending',
-      title: 'Transmitting Broadcast',
-      message: `Starting throttled broadcast for ${resolvedRecipients.length} students (5s delay between messages)...`,
+      title: isCommPeak ? 'Transmitting Batch Broadcast' : 'Transmitting Broadcast',
+      message: isCommPeak
+        ? `Broadcasting to ${resolvedRecipients.length} students via CommPeak (batches of 250)...`
+        : `Starting throttled broadcast for ${resolvedRecipients.length} students (5s delay between messages)...`,
     });
 
     try {
@@ -708,48 +713,167 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       let deliveredCount = 0;
       let failedCount = 0;
+      let firstBatchError: string | null = null;
 
-      // Sequential throttled dispatch: strict 5000ms delay between consecutive requests
-      for (let i = 0; i < normalizedRecipients.length; i++) {
-        const student = normalizedRecipients[i];
-        setSendingCurrent(i + 1);
-        setSendingStudentName(student.name);
+      if (isCommPeak) {
+        // CommPeak Gateway: High-performance batching in chunks of 250
+        const batches = chunkArray(normalizedRecipients, 250);
+        let processedCount = 0;
 
-        // Strict 5-second delay before sending each message after the first one
-        if (i > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-        }
+        for (let bIndex = 0; bIndex < batches.length; bIndex++) {
+          const batch = batches[bIndex];
+          const batchLabel = `Batch ${bIndex + 1}/${batches.length} (${batch.length} recipients)`;
+          setSendingStudentName(batchLabel);
 
-        try {
-          const response = await fetch('/api/send-sms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              recipients: [student],
-              message: composerMessage,
-              batchId,
-              skipCampaignLog: true,
-              gateway: selectedGateway,
-              senderId: settings.defaultSenderId,
-              iraqSmsApiKey: settings.iraqSmsApiKey,
-              commpeakApiKey: settings.commpeakApiKey,
-            }),
-          });
-
-          const data = await response.json();
-          if (response.ok && data.success) {
-            deliveredCount++;
-            results.push({
-              id: student.id,
-              name: student.name,
-              phoneNumber: student.phoneNumber,
-              originalPhone: student.phoneNumber,
-              department: student.department,
-              stage: student.stage,
-              studentId: student.studentId,
-              success: true,
+          try {
+            const response = await fetch('/api/send-sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipients: batch,
+                message: composerMessage,
+                batchId,
+                skipCampaignLog: true,
+                gateway: 'commpeak',
+                senderId: settings.defaultSenderId,
+                commpeakApiKey: settings.commpeakApiKey,
+              }),
             });
-          } else {
+
+            const data = await response.json();
+            const isBatchSuccess = response.ok && data.success && (data.deliveredCount ?? 0) > 0;
+
+            if (isBatchSuccess) {
+              const batchDelivered = data.deliveredCount ?? batch.length;
+              deliveredCount += batchDelivered;
+              failedCount += data.failedCount ?? 0;
+
+              for (const student of batch) {
+                results.push({
+                  id: student.id,
+                  name: student.name,
+                  phoneNumber: student.phoneNumber,
+                  originalPhone: student.phoneNumber,
+                  department: student.department,
+                  stage: student.stage,
+                  studentId: student.studentId,
+                  success: true,
+                });
+              }
+            } else {
+              failedCount += batch.length;
+              const errMsg =
+                data.error ||
+                (data.results && data.results.find((r: { error?: string }) => r.error)?.error) ||
+                data.message ||
+                'CommPeak Error: Failed to send';
+
+              if (!firstBatchError) {
+                firstBatchError = errMsg;
+              }
+
+              for (const student of batch) {
+                results.push({
+                  id: student.id,
+                  name: student.name,
+                  phoneNumber: student.phoneNumber,
+                  originalPhone: student.phoneNumber,
+                  department: student.department,
+                  stage: student.stage,
+                  studentId: student.studentId,
+                  success: false,
+                  error: errMsg,
+                });
+              }
+            }
+          } catch (dispatchErr: unknown) {
+            failedCount += batch.length;
+            const rawErrMsg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+            const errMsg = rawErrMsg.toLowerCase().startsWith('commpeak error')
+              ? rawErrMsg
+              : `CommPeak Error: ${rawErrMsg}`;
+
+            if (!firstBatchError) {
+              firstBatchError = errMsg;
+            }
+
+            for (const student of batch) {
+              results.push({
+                id: student.id,
+                name: student.name,
+                phoneNumber: student.phoneNumber,
+                originalPhone: student.phoneNumber,
+                department: student.department,
+                stage: student.stage,
+                studentId: student.studentId,
+                success: false,
+                error: errMsg,
+              });
+            }
+          }
+
+          // Progress jumps by chunks of 250 as each batch successfully returns
+          processedCount += batch.length;
+          setSendingCurrent(processedCount);
+          const percent = Math.min(100, Math.round((processedCount / normalizedRecipients.length) * 100));
+          setSendProgress(percent);
+        }
+      } else {
+        // Primary Iraq SMS: Sequential throttled dispatch with strict 5000ms delay between consecutive requests
+        for (let i = 0; i < normalizedRecipients.length; i++) {
+          const student = normalizedRecipients[i];
+          setSendingCurrent(i + 1);
+          setSendingStudentName(student.name);
+
+          // Strict 5-second delay before sending each message after the first one
+          if (i > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+
+          try {
+            const response = await fetch('/api/send-sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipients: [student],
+                message: composerMessage,
+                batchId,
+                skipCampaignLog: true,
+                gateway: selectedGateway,
+                senderId: settings.defaultSenderId,
+                iraqSmsApiKey: settings.iraqSmsApiKey,
+                commpeakApiKey: settings.commpeakApiKey,
+              }),
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success) {
+              deliveredCount++;
+              results.push({
+                id: student.id,
+                name: student.name,
+                phoneNumber: student.phoneNumber,
+                originalPhone: student.phoneNumber,
+                department: student.department,
+                stage: student.stage,
+                studentId: student.studentId,
+                success: true,
+              });
+            } else {
+              failedCount++;
+              results.push({
+                id: student.id,
+                name: student.name,
+                phoneNumber: student.phoneNumber,
+                originalPhone: student.phoneNumber,
+                department: student.department,
+                stage: student.stage,
+                studentId: student.studentId,
+                success: false,
+                error: data.error || 'Failed to dispatch SMS',
+              });
+            }
+          } catch (dispatchErr: unknown) {
             failedCount++;
             results.push({
               id: student.id,
@@ -760,26 +884,13 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stage: student.stage,
               studentId: student.studentId,
               success: false,
-              error: data.error || 'Failed to dispatch SMS',
+              error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
             });
           }
-        } catch (dispatchErr: unknown) {
-          failedCount++;
-          results.push({
-            id: student.id,
-            name: student.name,
-            phoneNumber: student.phoneNumber,
-            originalPhone: student.phoneNumber,
-            department: student.department,
-            stage: student.stage,
-            studentId: student.studentId,
-            success: false,
-            error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
-          });
-        }
 
-        const percent = Math.round(((i + 1) / normalizedRecipients.length) * 100);
-        setSendProgress(percent);
+          const percent = Math.round(((i + 1) / normalizedRecipients.length) * 100);
+          setSendProgress(percent);
+        }
       }
 
       const gatewayUsed =
@@ -809,14 +920,14 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         providerDetails: {
           providerName:
             selectedGateway === 'commpeak'
-              ? 'CommPeak SMS Gateway (Throttled)'
+              ? 'CommPeak SMS Gateway (Batch simple_send)'
               : 'Standing Tech (Bulk SMS Iraq v4 - Throttled)',
           latencyMs: Date.now() - startTime,
           simulated: false,
           endpointPlaceholder:
             selectedGateway === 'commpeak'
-              ? 'CommPeak Carrier Gateway'
-              : 'Bulk SMS Iraq Gateway (5s Rate Limited)',
+              ? 'https://gw.commpeak.com/textpeak/streams/simple_send'
+              : 'https://gateway.standingtech.com/api/v4/sms/send',
         },
       };
 
@@ -825,28 +936,66 @@ export const SMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setCampaignHistory((prev) => [batchResult, ...prev]);
 
-      showToast({
-        type: failedCount === 0 ? 'success' : 'warning',
-        title: failedCount === 0 ? 'SMS Broadcast Complete' : 'Broadcast Finished with Warnings',
-        message:
-          failedCount === 0
-            ? `Successfully sent ${deliveredCount} SMS messages with 5s throttling.`
-            : `Delivered ${deliveredCount} of ${normalizedRecipients.length} messages (${failedCount} failed).`,
-        duration: 6000,
-      });
+      if (deliveredCount === 0 && failedCount > 0) {
+        // Complete failure: surface specific error in a red error toast
+        const specificError =
+          firstBatchError ||
+          results.find((r) => r.error)?.error ||
+          (selectedGateway === 'commpeak' ? 'CommPeak Error: Failed to send' : 'Failed to send SMS');
 
-      setTimeout(() => {
-        setIsComposerOpen(false);
-      }, 1000);
+        showToast({
+          type: 'error',
+          title: selectedGateway === 'commpeak' ? 'CommPeak Error' : 'Transmission Failed',
+          message: specificError,
+          duration: 9000,
+        });
+      } else if (failedCount > 0) {
+        // Partial delivery
+        const specificError =
+          firstBatchError ||
+          results.find((r) => r.error)?.error ||
+          'Some messages could not be delivered';
+
+        showToast({
+          type: 'warning',
+          title: 'Broadcast Finished with Warnings',
+          message: `Delivered ${deliveredCount} of ${normalizedRecipients.length} messages (${failedCount} failed). Reason: ${specificError}`,
+          duration: 8000,
+        });
+
+        setTimeout(() => {
+          setIsComposerOpen(false);
+        }, 1200);
+      } else {
+        // Complete success
+        showToast({
+          type: 'success',
+          title: 'SMS Broadcast Complete',
+          message:
+            selectedGateway === 'commpeak'
+              ? `Successfully dispatched ${deliveredCount} SMS messages via CommPeak batching.`
+              : `Successfully sent ${deliveredCount} SMS messages with 5s throttling.`,
+          duration: 6000,
+        });
+
+        setTimeout(() => {
+          setIsComposerOpen(false);
+        }, 1000);
+      }
 
       return batchResult;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Transmission failed.';
+      const rawMsg = err instanceof Error ? err.message : 'Transmission failed.';
+      const msg =
+        selectedGateway === 'commpeak' && !rawMsg.toLowerCase().startsWith('commpeak error')
+          ? `CommPeak Error: ${rawMsg}`
+          : rawMsg;
+
       showToast({
         type: 'error',
-        title: 'Transmission Failed',
+        title: selectedGateway === 'commpeak' ? 'CommPeak Error' : 'Transmission Failed',
         message: msg,
-        duration: 6000,
+        duration: 9000,
       });
       return null;
     } finally {

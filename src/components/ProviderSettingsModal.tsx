@@ -9,14 +9,12 @@ import {
   Database, 
   Copy, 
   Check, 
-  FileCode, 
   SlidersHorizontal,
   Radio,
   BookOpen,
   Eye,
   EyeOff,
   Save,
-  CheckCircle2,
   ShieldCheck,
   Server,
   Sparkles,
@@ -117,10 +115,11 @@ IRAQSMS_API_URL="https://gateway.standingtech.com/api/v4/sms/send"
 IRAQSMS_SENDER_ID="TIUSuli"
 
 # ==============================================================================
-# Secondary SMS Provider (CommPeak SMS Gateway)
+# Secondary SMS Provider (CommPeak SMS Gateway - simple_send)
 # ==============================================================================
 COMMPEAK_API_KEY="your-commpeak-api-key"
-COMMPEAK_API_URL="https://api.commpeak.com/v1/sms/send"
+NEXT_PUBLIC_COMMPEAK_API_KEY="your-commpeak-api-key"
+COMMPEAK_API_URL="https://gw.commpeak.com/textpeak/streams/simple_send"
 COMMPEAK_SENDER_ID="TIUSuli"`;
 
   const sqlSnippet = `-- 1. Students Table with Stage Check Constraint
@@ -470,7 +469,7 @@ CREATE POLICY "Allow public all access" ON public.app_settings FOR ALL USING (tr
                   </button>
                 </div>
                 <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between">
-                  <span>Endpoint: api.commpeak.com/v1/sms/send</span>
+                  <span>Endpoint: gw.commpeak.com/textpeak/streams/simple_send</span>
                   {commpeakApiKey && <span className="text-violet-600 font-sans font-semibold">Configured</span>}
                 </div>
               </div>

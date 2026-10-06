@@ -12,15 +12,17 @@ export const DynamicIslandToast: React.FC = () => {
   const isTransmitting = toast.type === 'sending' || isSending;
 
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none transition-all duration-300 ease-out animate-toast-in">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center pointer-events-none transition-all duration-300 ease-out animate-toast-in">
       <div
-        className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition-all duration-300 border border-white/15 ${
+        className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-2xl sm:rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition-all duration-300 border border-white/15 ${
           isTransmitting
             ? 'bg-zinc-950/90 backdrop-blur-2xl text-white min-w-[320px] max-w-md ring-1 ring-white/20'
             : toast.type === 'success'
             ? 'bg-zinc-950/90 backdrop-blur-2xl text-white ring-1 ring-emerald-500/30'
             : toast.type === 'error'
-            ? 'bg-zinc-950/90 backdrop-blur-2xl text-white ring-1 ring-red-500/30'
+            ? 'bg-zinc-950/95 backdrop-blur-2xl text-white ring-1 ring-rose-500/60 shadow-[0_12px_40px_rgba(244,63,94,0.3)]'
+            : toast.type === 'warning'
+            ? 'bg-zinc-950/90 backdrop-blur-2xl text-white ring-1 ring-amber-500/30'
             : 'bg-zinc-950/90 backdrop-blur-2xl text-white'
         }`}
       >
@@ -50,7 +52,11 @@ export const DynamicIslandToast: React.FC = () => {
         {/* Message Content */}
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold tracking-tight text-zinc-100">
+            <span
+              className={`text-xs font-semibold tracking-tight ${
+                toast.type === 'error' ? 'text-rose-100' : 'text-zinc-100'
+              }`}
+            >
               {toast.title}
             </span>
             {isTransmitting && (
@@ -60,7 +66,11 @@ export const DynamicIslandToast: React.FC = () => {
             )}
           </div>
           {toast.message && (
-            <p className="text-[11px] text-zinc-400 truncate max-w-[280px]">
+            <p
+              className={`text-[11px] font-medium mt-0.5 max-w-[340px] sm:max-w-md break-words ${
+                toast.type === 'error' ? 'text-rose-300' : 'text-zinc-400'
+              }`}
+            >
               {toast.message}
             </p>
           )}

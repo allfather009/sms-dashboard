@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   iraqSmsApiKey: '',
   commpeakApiKey: '',
   iraqSmsApiUrl: 'https://gateway.standingtech.com/api/v4/sms/send',
-  commpeakApiUrl: 'https://api.commpeak.com/v1/sms/send',
+  commpeakApiUrl: 'https://gw.commpeak.com/textpeak/streams/simple_send',
 };
 
 const STORAGE_KEY = 'tius_sms_settings_v1';

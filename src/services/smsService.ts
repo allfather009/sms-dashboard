@@ -149,8 +149,8 @@ export async function sendBulkSMS(
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || `Server rejected transmission (${response.status})`);
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || data.message || `Server rejected transmission (${response.status})`);
     }
 
     const gatewayUsed = data.gateway || data.gateway_used || options?.gateway || 'Primary (Iraq SMS)';

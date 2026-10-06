@@ -58,12 +58,16 @@ export const SMSComposer: React.FC = () => {
     settings,
   } = useSMS();
 
-  // Dynamic estimated remaining time for throttled 5-second broadcasts
+  // Dynamic estimated remaining time (CommPeak batches of 250 vs Iraq SMS 5s throttled broadcasts)
   const estimatedRemainingSec = useMemo(() => {
     if (!isSending || sendingTotal <= 0) return 0;
     const remainingCount = Math.max(0, sendingTotal - sendingCurrent);
+    if (selectedGateway === 'commpeak') {
+      const remainingBatches = Math.ceil(remainingCount / 250);
+      return remainingBatches * 2;
+    }
     return remainingCount * 5;
-  }, [isSending, sendingTotal, sendingCurrent]);
+  }, [isSending, sendingTotal, sendingCurrent, selectedGateway]);
 
   const formatRemainingTime = (totalSeconds: number) => {
     if (totalSeconds <= 0) return 'Almost complete';
@@ -187,23 +191,45 @@ export const SMSComposer: React.FC = () => {
           </button>
         </div>
 
-        {/* Anti-Close Warning Banner during Throttled Broadcast */}
+        {/* Anti-Close Warning Banner during Active Broadcast */}
         {isSending && (
-          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-950 flex items-start gap-3 text-xs shadow-xs animate-in fade-in slide-in-from-top-2">
-            <div className="w-7 h-7 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-              <AlertTriangle className="w-4 h-4 animate-pulse text-amber-600" />
+          <div className={`mx-5 mt-4 p-3.5 rounded-2xl border text-xs shadow-xs animate-in fade-in slide-in-from-top-2 flex items-start gap-3 ${
+            selectedGateway === 'commpeak'
+              ? 'bg-blue-500/10 border-blue-500/25 text-blue-950'
+              : 'bg-amber-500/10 border-amber-500/25 text-amber-950'
+          }`}>
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+              selectedGateway === 'commpeak'
+                ? 'bg-blue-500/15 text-blue-600'
+                : 'bg-amber-500/15 text-amber-600'
+            }`}>
+              <AlertTriangle className={`w-4 h-4 animate-pulse ${
+                selectedGateway === 'commpeak' ? 'text-blue-600' : 'text-amber-600'
+              }`} />
             </div>
             <div className="space-y-1 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-1.5">
-                <p className="font-semibold text-amber-900 text-xs">
-                  Broadcast in Progress — Please Do Not Close or Refresh This Tab
+                <p className={`font-semibold text-xs ${
+                  selectedGateway === 'commpeak' ? 'text-blue-900' : 'text-amber-900'
+                }`}>
+                  {selectedGateway === 'commpeak'
+                    ? 'CommPeak Batch Broadcast in Progress — Do Not Close or Refresh This Tab'
+                    : 'Broadcast in Progress — Please Do Not Close or Refresh This Tab'}
                 </p>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200/60 text-amber-900 shrink-0">
-                  5s Throttling Active
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                  selectedGateway === 'commpeak'
+                    ? 'bg-blue-200/60 text-blue-900'
+                    : 'bg-amber-200/60 text-amber-900'
+                }`}>
+                  {selectedGateway === 'commpeak' ? 'CommPeak 250 Batching' : '5s Throttling Active'}
                 </span>
               </div>
-              <p className="text-[11px] text-amber-800/90 leading-relaxed">
-                Messages are being dispatched sequentially with a strict 5-second carrier delay to prevent provider rate-limiting. Leaving or closing this page will interrupt remaining deliveries.
+              <p className={`text-[11px] leading-relaxed ${
+                selectedGateway === 'commpeak' ? 'text-blue-800/90' : 'text-amber-800/90'
+              }`}>
+                {selectedGateway === 'commpeak'
+                  ? 'Messages are being transmitted in batches of up to 250 recipients via CommPeak simple_send API. The progress bar updates in 250-message increments as each batch receives a 200 OK and task ID.'
+                  : 'Messages are being dispatched sequentially with a strict 5-second carrier delay to prevent provider rate-limiting. Leaving or closing this page will interrupt remaining deliveries.'}
               </p>
             </div>
           </div>
@@ -662,8 +688,17 @@ export const SMSComposer: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
-                <span>Carrier Gateway: Standing Tech (Bulk SMS Iraq)</span>
-                <span>Throttling: 1 message / 5s</span>
+                <span>
+                  Carrier Gateway:{' '}
+                  {selectedGateway === 'commpeak'
+                    ? 'CommPeak (simple_send OpenAPI V2.0)'
+                    : 'Standing Tech (Bulk SMS Iraq v4)'}
+                </span>
+                <span>
+                  {selectedGateway === 'commpeak'
+                    ? 'Batch size: 250 messages / call'
+                    : 'Throttling: 1 message / 5s'}
+                </span>
               </div>
             </div>
           )}

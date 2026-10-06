@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   iraqSmsApiKey: process.env.IRAQSMS_API_KEY || process.env.SMS_API_KEY || '',
   commpeakApiKey: process.env.COMMPEAK_API_KEY || '',
   iraqSmsApiUrl: process.env.IRAQSMS_API_URL || process.env.SMS_API_URL || 'https://gateway.standingtech.com/api/v4/sms/send',
-  commpeakApiUrl: process.env.COMMPEAK_API_URL || 'https://api.commpeak.com/v1/sms/send',
+  commpeakApiUrl: process.env.COMMPEAK_API_URL || 'https://gw.commpeak.com/textpeak/streams/simple_send',
 };
 
 // In-memory fallback if Supabase is offline or table is unavailable
